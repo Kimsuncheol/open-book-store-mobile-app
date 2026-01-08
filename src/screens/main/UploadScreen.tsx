@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import { View, Text, StyleSheet, TouchableOpacity, Alert } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 import * as DocumentPicker from "expo-document-picker";
 import { Ionicons } from "@expo/vector-icons";
 import { Button } from "../../components/Button";
@@ -9,10 +10,9 @@ import { useAuth } from "../../context/AuthContext";
 import { uploadPDF } from "../../services/storageService";
 import { addBook } from "../../services/firestoreService";
 import { spacing, typography, borderRadius } from "../../theme/colors";
-import type { NativeStackScreenProps } from "@react-navigation/native-stack";
-import type { MainStackParamList } from "../../types/navigation";
+import type { UploadScreenProps } from "../../types/navigation";
 
-type Props = NativeStackScreenProps<MainStackParamList, "Upload">;
+type Props = UploadScreenProps;
 
 export const UploadScreen: React.FC<Props> = ({ navigation }) => {
   const { colors } = useTheme();
@@ -69,7 +69,7 @@ export const UploadScreen: React.FC<Props> = ({ navigation }) => {
   };
 
   return (
-    <View style={styles.container}>
+    <SafeAreaView style={styles.container} edges={["top", "bottom"]}>
       <View style={styles.header}>
         <TouchableOpacity onPress={() => navigation.goBack()}>
           <Ionicons name="arrow-back" size={24} color={colors.textPrimary} />
@@ -123,7 +123,7 @@ export const UploadScreen: React.FC<Props> = ({ navigation }) => {
           style={styles.uploadButton}
         />
       </View>
-    </View>
+    </SafeAreaView>
   );
 };
 

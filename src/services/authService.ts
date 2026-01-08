@@ -5,9 +5,12 @@ import {
   sendPasswordResetEmail,
   GoogleAuthProvider,
   signInWithCredential,
+  reauthenticateWithCredential,
+  EmailAuthProvider,
   updateProfile,
+  deleteUser,
 } from 'firebase/auth';
-import { doc, setDoc, getDoc } from 'firebase/firestore';
+import { doc, setDoc, getDoc, deleteDoc } from 'firebase/firestore';
 import { auth, db } from '../config/firebase';
 import * as Google from 'expo-auth-session/providers/google';
 import * as WebBrowser from 'expo-web-browser';
@@ -82,9 +85,30 @@ export const signOutUser = async () => {
   return signOut(auth);
 };
 
+// Reauthenticate User
+export const reauthenticateUser = async (password: string) => {
+  const user = auth.currentUser;
+  if (user && user.email) {
+    const credential = EmailAuthProvider.credential(user.email, password);
+    return reauthenticateWithCredential(user, credential);
+  }
+  throw new Error('No user logged in or user has no email');
+};
+
 // Reset Password
 export const resetPassword = async (email: string) => {
   return sendPasswordResetEmail(auth, email);
+};
+
+// Delete Account
+export const deleteUserAccount = async () => {
+  const user = auth.currentUser;
+  if (user) {
+    // Delete user profile from Firestore
+    await deleteDoc(doc(db, 'users', user.uid));
+    // Delete user from Firebase Auth
+    return deleteUser(user);
+  }
 };
 
 // Get current user

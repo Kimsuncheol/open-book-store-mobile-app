@@ -7,6 +7,7 @@ import {
   TouchableOpacity,
   Alert,
 } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { useTheme } from "../../context/ThemeContext";
 import { useAuth } from "../../context/AuthContext";
@@ -143,7 +144,10 @@ export const PollsScreen: React.FC<PollsScreenProps> = ({ navigation }) => {
   );
 
   return (
-    <View style={[styles.container, { backgroundColor: colors.background }]}>
+    <SafeAreaView
+      style={[styles.container, { backgroundColor: colors.background }]}
+      edges={["top", "bottom"]}
+    >
       {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity onPress={() => navigation.goBack()}>
@@ -173,7 +177,7 @@ export const PollsScreen: React.FC<PollsScreenProps> = ({ navigation }) => {
           </View>
         }
       />
-    </View>
+    </SafeAreaView>
   );
 };
 
@@ -184,7 +188,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "space-between",
     padding: spacing.lg,
-    paddingTop: spacing.xxl,
+    paddingTop: spacing.xs,
   },
   headerTitle: { fontSize: 18, fontWeight: "600" },
   list: { padding: spacing.lg, gap: spacing.lg },

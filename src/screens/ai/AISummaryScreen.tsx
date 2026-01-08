@@ -7,15 +7,15 @@ import {
   TouchableOpacity,
   ActivityIndicator,
 } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { Button } from "../../components/Button";
 import { useTheme } from "../../context/ThemeContext";
 import { generateSummary } from "../../services/aiService";
 import { spacing, typography, borderRadius } from "../../theme/colors";
-import type { NativeStackScreenProps } from "@react-navigation/native-stack";
-import type { MainStackParamList } from "../../types/navigation";
+import type { AISummaryScreenProps } from "../../types/navigation";
 
-type Props = NativeStackScreenProps<MainStackParamList, "AISummary">;
+type Props = AISummaryScreenProps;
 
 export const AISummaryScreen: React.FC<Props> = ({ navigation, route }) => {
   const { bookId, title } = route.params;
@@ -44,17 +44,7 @@ export const AISummaryScreen: React.FC<Props> = ({ navigation, route }) => {
   }, []);
 
   return (
-    <View style={styles.container}>
-      <View style={styles.header}>
-        <TouchableOpacity onPress={() => navigation.goBack()}>
-          <Ionicons name="arrow-back" size={24} color={colors.textPrimary} />
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>AI Summary</Text>
-        <TouchableOpacity onPress={loadSummary}>
-          <Ionicons name="refresh" size={24} color={colors.primary} />
-        </TouchableOpacity>
-      </View>
-
+    <SafeAreaView style={styles.container} edges={["top", "bottom"]}>
       <ScrollView contentContainerStyle={styles.content}>
         <View style={styles.bookInfo}>
           <Ionicons name="book" size={32} color={colors.primary} />
@@ -93,7 +83,7 @@ export const AISummaryScreen: React.FC<Props> = ({ navigation, route }) => {
           <Ionicons name="chevron-forward" size={20} color={colors.textMuted} />
         </TouchableOpacity>
       </ScrollView>
-    </View>
+    </SafeAreaView>
   );
 };
 
@@ -105,7 +95,7 @@ const createStyles = (colors: any) =>
       alignItems: "center",
       justifyContent: "space-between",
       padding: spacing.lg,
-      paddingTop: spacing.xxl,
+      paddingTop: spacing.xs,
     },
     headerTitle: { ...typography.h3, color: colors.textPrimary },
     content: { padding: spacing.lg },

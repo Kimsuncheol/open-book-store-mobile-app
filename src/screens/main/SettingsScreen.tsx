@@ -7,13 +7,13 @@ import {
   TouchableOpacity,
   Switch,
 } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { useTheme, ThemeMode } from "../../context/ThemeContext";
 import { spacing, typography, borderRadius } from "../../theme/colors";
-import type { NativeStackScreenProps } from "@react-navigation/native-stack";
-import type { MainStackParamList } from "../../types/navigation";
+import type { SettingsScreenProps } from "../../types/navigation";
 
-type Props = NativeStackScreenProps<MainStackParamList, "Settings">;
+type Props = SettingsScreenProps;
 
 const themeOptions: { value: ThemeMode; label: string; icon: string }[] = [
   { value: "light", label: "Light", icon: "sunny" },
@@ -28,87 +28,89 @@ export const SettingsScreen: React.FC<Props> = ({ navigation }) => {
   const styles = createStyles(colors);
 
   return (
-    <ScrollView style={styles.container}>
-      <View style={styles.header}>
-        <TouchableOpacity onPress={() => navigation.goBack()}>
-          <Ionicons name="arrow-back" size={24} color={colors.textPrimary} />
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>Settings</Text>
-        <View style={{ width: 24 }} />
-      </View>
+    <SafeAreaView style={styles.container} edges={["top", "bottom"]}>
+      <ScrollView>
+        <View style={styles.header}>
+          <TouchableOpacity onPress={() => navigation.goBack()}>
+            <Ionicons name="arrow-back" size={24} color={colors.textPrimary} />
+          </TouchableOpacity>
+          <Text style={styles.headerTitle}>Settings</Text>
+          <View style={{ width: 24 }} />
+        </View>
 
-      {/* Appearance */}
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Appearance</Text>
-        <View style={styles.themeSelector}>
-          {themeOptions.map((option) => (
-            <TouchableOpacity
-              key={option.value}
-              style={[
-                styles.themeOption,
-                themeMode === option.value && styles.themeOptionActive,
-              ]}
-              onPress={() => setThemeMode(option.value)}
-            >
-              <Ionicons
-                name={option.icon as any}
-                size={24}
-                color={
-                  themeMode === option.value
-                    ? colors.textLight
-                    : colors.textSecondary
-                }
-              />
-              <Text
+        {/* Appearance */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Appearance</Text>
+          <View style={styles.themeSelector}>
+            {themeOptions.map((option) => (
+              <TouchableOpacity
+                key={option.value}
                 style={[
-                  styles.themeLabel,
-                  themeMode === option.value && styles.themeLabelActive,
+                  styles.themeOption,
+                  themeMode === option.value && styles.themeOptionActive,
                 ]}
+                onPress={() => setThemeMode(option.value)}
               >
-                {option.label}
-              </Text>
-            </TouchableOpacity>
-          ))}
-        </View>
-      </View>
-
-      {/* Notifications */}
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Notifications</Text>
-        <View style={styles.settingRow}>
-          <View style={styles.settingInfo}>
-            <Ionicons
-              name="notifications-outline"
-              size={22}
-              color={colors.primary}
-            />
-            <Text style={styles.settingLabel}>Push Notifications</Text>
+                <Ionicons
+                  name={option.icon as any}
+                  size={24}
+                  color={
+                    themeMode === option.value
+                      ? colors.textLight
+                      : colors.textSecondary
+                  }
+                />
+                <Text
+                  style={[
+                    styles.themeLabel,
+                    themeMode === option.value && styles.themeLabelActive,
+                  ]}
+                >
+                  {option.label}
+                </Text>
+              </TouchableOpacity>
+            ))}
           </View>
-          <Switch
-            value={notifications}
-            onValueChange={setNotifications}
-            trackColor={{ false: colors.border, true: colors.primary }}
-            thumbColor={colors.surface}
-          />
         </View>
-      </View>
 
-      {/* About */}
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>About</Text>
-        <View style={styles.settingRow}>
-          <View style={styles.settingInfo}>
-            <Ionicons
-              name="information-circle-outline"
-              size={22}
-              color={colors.primary}
+        {/* Notifications */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Notifications</Text>
+          <View style={styles.settingRow}>
+            <View style={styles.settingInfo}>
+              <Ionicons
+                name="notifications-outline"
+                size={22}
+                color={colors.primary}
+              />
+              <Text style={styles.settingLabel}>Push Notifications</Text>
+            </View>
+            <Switch
+              value={notifications}
+              onValueChange={setNotifications}
+              trackColor={{ false: colors.border, true: colors.primary }}
+              thumbColor={colors.surface}
             />
-            <Text style={styles.settingLabel}>Version</Text>
           </View>
-          <Text style={styles.versionText}>1.0.0</Text>
         </View>
-      </View>
-    </ScrollView>
+
+        {/* About */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>About</Text>
+          <View style={styles.settingRow}>
+            <View style={styles.settingInfo}>
+              <Ionicons
+                name="information-circle-outline"
+                size={22}
+                color={colors.primary}
+              />
+              <Text style={styles.settingLabel}>Version</Text>
+            </View>
+            <Text style={styles.versionText}>1.0.0</Text>
+          </View>
+        </View>
+      </ScrollView>
+    </SafeAreaView>
   );
 };
 
@@ -120,7 +122,7 @@ const createStyles = (colors: any) =>
       alignItems: "center",
       justifyContent: "space-between",
       padding: spacing.lg,
-      paddingTop: spacing.xxl,
+      paddingTop: spacing.xs,
     },
     headerTitle: { ...typography.h3, color: colors.textPrimary },
     section: { padding: spacing.lg },

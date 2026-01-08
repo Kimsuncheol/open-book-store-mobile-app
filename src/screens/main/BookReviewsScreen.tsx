@@ -36,6 +36,19 @@ export const BookReviewsScreen: React.FC<BookReviewsScreenProps> = ({
   const averageRating = getAverageRating(bookId);
 
   const handleEdit = (reviewId: string) => {
+    if (!user) {
+      Alert.alert("Sign In Required", "Please sign in to write a review", [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Sign In",
+          onPress: () =>
+            (navigation.getParent() as any)?.navigate("Auth", {
+              screen: "SignIn",
+            }),
+        },
+      ]);
+      return;
+    }
     navigation.navigate("WriteReview", { bookId, bookTitle });
   };
 
@@ -124,9 +137,26 @@ export const BookReviewsScreen: React.FC<BookReviewsScreenProps> = ({
           Reviews
         </Text>
         <TouchableOpacity
-          onPress={() =>
-            navigation.navigate("WriteReview", { bookId, bookTitle })
-          }
+          onPress={() => {
+            if (!user) {
+              Alert.alert(
+                "Sign In Required",
+                "Please sign in to write a review",
+                [
+                  { text: "Cancel", style: "cancel" },
+                  {
+                    text: "Sign In",
+                    onPress: () =>
+                      (navigation.getParent() as any)?.navigate("Auth", {
+                        screen: "SignIn",
+                      }),
+                  },
+                ]
+              );
+              return;
+            }
+            navigation.navigate("WriteReview", { bookId, bookTitle });
+          }}
         >
           <Ionicons name="create-outline" size={24} color={PRIMARY} />
         </TouchableOpacity>
@@ -164,9 +194,26 @@ export const BookReviewsScreen: React.FC<BookReviewsScreenProps> = ({
             </Text>
             <TouchableOpacity
               style={[styles.writeBtn, { backgroundColor: PRIMARY }]}
-              onPress={() =>
-                navigation.navigate("WriteReview", { bookId, bookTitle })
-              }
+              onPress={() => {
+                if (!user) {
+                  Alert.alert(
+                    "Sign In Required",
+                    "Please sign in to write a review",
+                    [
+                      { text: "Cancel", style: "cancel" },
+                      {
+                        text: "Sign In",
+                        onPress: () =>
+                          (navigation.getParent() as any)?.navigate("Auth", {
+                            screen: "SignIn",
+                          }),
+                      },
+                    ]
+                  );
+                  return;
+                }
+                navigation.navigate("WriteReview", { bookId, bookTitle });
+              }}
             >
               <Text style={styles.writeBtnText}>Be the first to review</Text>
             </TouchableOpacity>

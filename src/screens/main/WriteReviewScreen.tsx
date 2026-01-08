@@ -7,6 +7,7 @@ import {
   TouchableOpacity,
   Alert,
   KeyboardAvoidingView,
+  ScrollView,
   Platform,
 } from "react-native";
 import {
@@ -19,7 +20,7 @@ import { useAuth } from "../../context/AuthContext";
 import { useReviews } from "../../context/ReviewsContext";
 import { StarRating } from "../../components/StarRating";
 import { Button } from "../../components/Button";
-import { spacing } from "../../theme/colors";
+import { spacing, typography } from "../../theme/colors";
 import type { WriteReviewScreenProps } from "../../types/navigation";
 
 export const WriteReviewScreen: React.FC<WriteReviewScreenProps> = ({
@@ -92,80 +93,139 @@ export const WriteReviewScreen: React.FC<WriteReviewScreenProps> = ({
       style={[styles.container, { backgroundColor: colors.background }]}
       edges={["top", "bottom"]}
     >
-      <KeyboardAvoidingView
-        behavior={Platform.OS === "ios" ? "padding" : "height"}
-        style={styles.content}
-      >
-        {/* Header */}
-        <View style={styles.header}>
-        <TouchableOpacity onPress={() => navigation.goBack()}>
-          <Ionicons name="close" size={28} color={colors.textPrimary} />
-        </TouchableOpacity>
-        <Text style={[styles.headerTitle, { color: colors.textPrimary }]}>
-          {existingReview ? "Edit Review" : "Write Review"}
-        </Text>
-        <View style={{ width: 28 }} />
-        </View>
-
-        {/* Book Title */}
-        <Text style={[styles.bookTitle, { color: colors.textSecondary }]}>
-          {bookTitle}
-        </Text>
-
-        {/* Star Rating */}
-        <View style={styles.ratingSection}>
-          <Text style={[styles.ratingLabel, { color: colors.textPrimary }]}>
-            Your Rating
-          </Text>
-          <StarRating
-            rating={rating}
-            size={40}
-            editable
-            onRatingChange={setRating}
+      {/* Auth Required State */}
+      {!user ? (
+        <View
+          style={{
+            flex: 1,
+            alignItems: "center",
+            justifyContent: "center",
+            padding: spacing.xl,
+          }}
+        >
+          <Ionicons
+            name="lock-closed-outline"
+            size={64}
+            color={colors.textMuted}
           />
-          <Text style={[styles.ratingText, { color: colors.textSecondary }]}>
-            {rating === 0
-              ? "Tap to rate"
-              : `${rating} star${rating > 1 ? "s" : ""}`}
+          <Text
+            style={{
+              ...typography.h3,
+              color: colors.textPrimary,
+              marginTop: spacing.lg,
+            }}
+          >
+            Sign In Required
           </Text>
+          <Text
+            style={{
+              ...typography.body,
+              color: colors.textSecondary,
+              marginTop: spacing.sm,
+              textAlign: "center",
+            }}
+          >
+            Please sign in to write a review
+          </Text>
+          <TouchableOpacity
+            style={{
+              marginTop: spacing.lg,
+              paddingHorizontal: spacing.xl,
+              paddingVertical: spacing.md,
+              backgroundColor: PRIMARY,
+              borderRadius: 12,
+            }}
+            onPress={() =>
+              (navigation.getParent() as any)?.navigate("Auth", {
+                screen: "SignIn",
+              })
+            }
+          >
+            <Text style={{ color: "#FFFFFF", fontSize: 16, fontWeight: "600" }}>
+              Sign In
+            </Text>
+          </TouchableOpacity>
         </View>
+      ) : (
+        <KeyboardAvoidingView
+          behavior={Platform.OS === "ios" ? "padding" : "height"}
+          style={styles.content}
+        >
+          <ScrollView contentContainerStyle={{ flex: 1 }}>
+            {/* Header */}
+            <View style={styles.header}>
+              <TouchableOpacity onPress={() => navigation.goBack()}>
+                <Ionicons name="close" size={28} color={colors.textPrimary} />
+              </TouchableOpacity>
+              <Text style={[styles.headerTitle, { color: colors.textPrimary }]}>
+                {existingReview ? "Edit Review" : "Write Review"}
+              </Text>
+              <View style={{ width: 28 }} />
+            </View>
 
-        {/* Review Text */}
-        <View style={styles.reviewSection}>
-          <Text style={[styles.reviewLabel, { color: colors.textPrimary }]}>
-            Your Review
-          </Text>
-          <TextInput
-            style={[
-              styles.textInput,
-              {
-                backgroundColor: colors.surface,
-                color: colors.textPrimary,
-                borderColor: colors.border,
-              },
-            ]}
-            placeholder="Share your thoughts about this book..."
-            placeholderTextColor={colors.textMuted}
-            value={reviewText}
-            onChangeText={setReviewText}
-            multiline
-            numberOfLines={6}
-            textAlignVertical="top"
-          />
-          <Text style={[styles.charCount, { color: colors.textMuted }]}>
-            {reviewText.length} characters
-          </Text>
-        </View>
+            {/* Book Title */}
+            <Text style={[styles.bookTitle, { color: colors.textSecondary }]}>
+              {bookTitle}
+            </Text>
 
-        {/* Submit Button */}
-        <View style={{ paddingBottom: insets.bottom }}>
-          <Button
-            title="Submit Review"
-            onPress={handleSubmit}
-            loading={loading}
-          />
-        </View>
-      </KeyboardAvoidingView>
+            {/* Star Rating */}
+            <View style={styles.ratingSection}>
+              <Text style={[styles.ratingLabel, { color: colors.textPrimary }]}>
+                Your Rating
+              </Text>
+              <StarRating
+                rating={rating}
+                size={40}
+                editable
+                onRatingChange={setRating}
+              />
+              <Text
+                style={[styles.ratingText, { color: colors.textSecondary }]}
+              >
+                {rating === 0
+                  ? "Tap to rate"
+                  : `${rating} star${rating > 1 ? "s" : ""}`}
+              </Text>
+            </View>
+
+            {/* Review Text */}
+            <View style={styles.reviewSection}>
+              <Text style={[styles.reviewLabel, { color: colors.textPrimary }]}>
+                Your Review
+              </Text>
+              <TextInput
+                style={[
+                  styles.textInput,
+                  {
+                    backgroundColor: colors.surface,
+                    color: colors.textPrimary,
+                    borderColor: colors.border,
+                  },
+                ]}
+                placeholder="Share your thoughts about this book..."
+                placeholderTextColor={colors.textMuted}
+                value={reviewText}
+                onChangeText={setReviewText}
+                multiline
+                numberOfLines={6}
+                textAlignVertical="top"
+              />
+              <Text style={[styles.charCount, { color: colors.textMuted }]}>
+                {reviewText.length} characters
+              </Text>
+            </View>
+
+            {/* Submit Button */}
+            <View style={{ paddingBottom: insets.bottom }}>
+              <Button
+                title="Submit Review"
+                onPress={handleSubmit}
+                loading={loading}
+              />
+            </View>
+          </ScrollView>
+        </KeyboardAvoidingView>
+      )}
     </SafeAreaView>
   );
 };

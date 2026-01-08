@@ -9,6 +9,7 @@ import {
   Alert,
   ScrollView,
 } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Button } from "../../components/Button";
@@ -26,6 +27,7 @@ const REMEMBER_EMAIL_KEY = "@openBookStore:rememberedEmail";
 
 export const SignInScreen: React.FC<SignInScreenProps> = ({ navigation }) => {
   const { colors } = useTheme();
+  const insets = useSafeAreaInsets();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [rememberMe, setRememberMe] = useState(false);
@@ -58,6 +60,8 @@ export const SignInScreen: React.FC<SignInScreenProps> = ({ navigation }) => {
     setGoogleLoading(true);
     try {
       await signInWithGoogle(idToken);
+      // Dismiss the Auth modal after successful sign-in
+      navigation.goBack();
     } catch (error: any) {
       Alert.alert("Error", error.message || "Google sign in failed");
     }
@@ -84,6 +88,8 @@ export const SignInScreen: React.FC<SignInScreenProps> = ({ navigation }) => {
         await AsyncStorage.removeItem(REMEMBER_EMAIL_KEY);
       }
       await signInWithEmail(email, password);
+      // Dismiss the Auth modal after successful sign-in
+      navigation.goBack();
     } catch (error: any) {
       Alert.alert("Error", error.message || "Sign in failed");
     }
@@ -95,7 +101,14 @@ export const SignInScreen: React.FC<SignInScreenProps> = ({ navigation }) => {
   return (
     <KeyboardAvoidingView
       behavior={Platform.OS === "ios" ? "padding" : undefined}
-      style={[styles.container, { backgroundColor: colors.background }]}
+      style={[
+        styles.container,
+        {
+          backgroundColor: colors.background,
+          paddingTop: insets.top,
+          paddingBottom: insets.bottom,
+        },
+      ]}
     >
       <ScrollView
         contentContainerStyle={styles.scrollContent}

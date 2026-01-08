@@ -28,10 +28,9 @@ import {
   AISearchResult,
 } from "../../services/aiSearchService";
 import { spacing, typography, borderRadius } from "../../theme/colors";
-import type { NativeStackScreenProps } from "@react-navigation/native-stack";
-import type { MainStackParamList } from "../../types/navigation";
+import type { DashboardScreenProps } from "../../types/navigation";
 
-type Props = NativeStackScreenProps<MainStackParamList, "Dashboard">;
+type Props = DashboardScreenProps;
 
 // Mock data for demo
 const mockBooks: Book[] = [
@@ -166,37 +165,8 @@ export const DashboardScreen: React.FC<Props> = ({ navigation }) => {
   );
 
   return (
-    <SafeAreaView style={styles.container} edges={["top"]}>
+    <SafeAreaView style={styles.container} edges={["top", "bottom"]}>
       <ScrollView style={{ flex: 1 }}>
-        <View style={styles.header}>
-          <View>
-            <Text style={styles.greeting}>
-              Hello, {user?.displayName || "Reader"}!
-            </Text>
-            <Text style={styles.subtitle}>Find your next great read</Text>
-          </View>
-          <View style={{ flexDirection: "row", alignItems: "center", gap: 12 }}>
-            <TouchableOpacity
-              onPress={() => navigation.navigate("Cart")}
-              style={{ position: "relative" }}
-            >
-              <Ionicons name="cart-outline" size={28} color={colors.primary} />
-              {totalItems > 0 && (
-                <View
-                  style={[styles.badge, { backgroundColor: colors.accent }]}
-                >
-                  <Text style={styles.badgeText}>
-                    {totalItems > 99 ? "99+" : totalItems}
-                  </Text>
-                </View>
-              )}
-            </TouchableOpacity>
-            <TouchableOpacity onPress={() => navigation.navigate("Profile")}>
-              <Ionicons name="person-circle" size={32} color={colors.primary} />
-            </TouchableOpacity>
-          </View>
-        </View>
-
         {/* Search */}
         <View style={styles.searchContainer}>
           <Ionicons name="search" size={20} color={colors.textMuted} />
@@ -239,7 +209,9 @@ export const DashboardScreen: React.FC<Props> = ({ navigation }) => {
           </TouchableOpacity>
           <TouchableOpacity
             style={styles.actionButton}
-            onPress={() => navigation.navigate("Downloads")}
+            onPress={() =>
+              navigation.navigate("DownloadsTab", { screen: "DownloadsMain" })
+            }
           >
             <Ionicons name="cloud-download" size={24} color={colors.primary} />
             <Text style={styles.actionText}>Downloads</Text>

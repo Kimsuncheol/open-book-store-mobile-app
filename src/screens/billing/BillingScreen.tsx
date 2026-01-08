@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import { View, Text, StyleSheet, TouchableOpacity, Alert } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 import { WebView } from "react-native-webview";
 import { Ionicons } from "@expo/vector-icons";
 import { useTheme } from "../../context/ThemeContext";
@@ -7,10 +8,9 @@ import { useAuth } from "../../context/AuthContext";
 import { getTossCheckoutHtml } from "../../services/tossPaymentsService";
 import { addPurchase } from "../../services/firestoreService";
 import { spacing, typography } from "../../theme/colors";
-import type { NativeStackScreenProps } from "@react-navigation/native-stack";
-import type { MainStackParamList } from "../../types/navigation";
+import type { BillingScreenProps } from "../../types/navigation";
 
-type Props = NativeStackScreenProps<MainStackParamList, "Billing">;
+type Props = BillingScreenProps;
 
 export const BillingScreen: React.FC<Props> = ({ navigation, route }) => {
   const { bookId, bookTitle, price } = route.params;
@@ -53,7 +53,7 @@ export const BillingScreen: React.FC<Props> = ({ navigation, route }) => {
 
   if (!bookId) {
     return (
-      <View style={styles.container}>
+      <SafeAreaView style={styles.container} edges={["top", "bottom"]}>
         <View style={styles.header}>
           <TouchableOpacity onPress={() => navigation.goBack()}>
             <Ionicons name="arrow-back" size={24} color={colors.textPrimary} />
@@ -65,7 +65,7 @@ export const BillingScreen: React.FC<Props> = ({ navigation, route }) => {
           <Ionicons name="card-outline" size={64} color={colors.textMuted} />
           <Text style={styles.emptyText}>Select a book to purchase</Text>
         </View>
-      </View>
+      </SafeAreaView>
     );
   }
 
@@ -74,7 +74,7 @@ export const BillingScreen: React.FC<Props> = ({ navigation, route }) => {
   const html = getTossCheckoutHtml(price, bookTitle, orderId);
 
   return (
-    <View style={styles.container}>
+    <SafeAreaView style={styles.container} edges={["top", "bottom"]}>
       <View style={styles.header}>
         <TouchableOpacity onPress={() => navigation.goBack()}>
           <Ionicons name="arrow-back" size={24} color={colors.textPrimary} />
@@ -88,7 +88,7 @@ export const BillingScreen: React.FC<Props> = ({ navigation, route }) => {
         style={styles.webview}
         javaScriptEnabled
       />
-    </View>
+    </SafeAreaView>
   );
 };
 
@@ -100,7 +100,7 @@ const createStyles = (colors: any) =>
       alignItems: "center",
       justifyContent: "space-between",
       padding: spacing.lg,
-      paddingTop: spacing.xxl,
+      paddingTop: spacing.xs,
       borderBottomWidth: 1,
       borderBottomColor: colors.border,
     },

@@ -6,6 +6,7 @@ import {
   ScrollView,
   TouchableOpacity,
 } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { useTheme } from "../../context/ThemeContext";
 import { spacing } from "../../theme/colors";
@@ -23,6 +24,7 @@ export const SalesReportScreen: React.FC<SalesReportScreenProps> = ({
   navigation,
 }) => {
   const { colors } = useTheme();
+  const insets = useSafeAreaInsets();
   const [period, setPeriod] = useState<"week" | "month" | "year">("month");
 
   const PRIMARY = "#8B4513";
@@ -80,7 +82,14 @@ export const SalesReportScreen: React.FC<SalesReportScreenProps> = ({
 
   return (
     <ScrollView
-      style={[styles.container, { backgroundColor: colors.background }]}
+      style={[
+        styles.container,
+        {
+          backgroundColor: colors.background,
+          paddingTop: insets.top,
+          paddingBottom: insets.bottom,
+        },
+      ]}
     >
       {/* Header */}
       <View style={styles.header}>

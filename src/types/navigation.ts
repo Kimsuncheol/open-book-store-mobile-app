@@ -1,65 +1,183 @@
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
+import type { BottomTabScreenProps } from '@react-navigation/bottom-tabs';
+import type { NavigatorScreenParams, CompositeScreenProps } from '@react-navigation/native';
 
+// Auth Stack
 export type AuthStackParamList = {
   SignIn: undefined;
   SignUp: undefined;
   ResetPassword: undefined;
 };
 
-export type MainStackParamList = {
-  // Common screens
-  Dashboard: undefined;
+// Dashboard Stack - screens accessible from Dashboard tab
+export type DashboardStackParamList = {
+  DashboardMain: undefined;
   BookList: { category?: string };
   BookDetails: { bookId: string };
-  Profile: undefined;
-  Settings: undefined;
-  Billing: { bookId: string; bookTitle: string; price: number };
-  Downloads: undefined;
-  Cart: undefined;
   PDFViewer: { bookId: string; title: string; filePath: string };
   AISummary: { bookId: string; title: string };
-  AIAsk: { bookId: string; title: string };
-  // User screens
+  AIAsk: { bookId?: string; title?: string } | undefined;
   WriteReview: { bookId: string; bookTitle: string };
   BookReviews: { bookId: string; bookTitle: string };
   Polls: undefined;
-  // Seller screens
-  Upload: undefined;
+  // Seller screens (accessible from Dashboard if user is seller)
   SellerDashboard: undefined;
+  Upload: undefined;
   MyBooks: undefined;
   SalesReport: undefined;
 };
 
-export type RootStackParamList = {
-  Auth: undefined;
-  Main: undefined;
+// Downloads Stack - screens accessible from Downloads tab
+export type DownloadsStackParamList = {
+  DownloadsMain: undefined;
 };
 
-// Auth Screen Props
+// Profile Stack - screens accessible from Profile tab
+export type ProfileStackParamList = {
+  ProfileMain: undefined;
+  Settings: undefined;
+  Account: undefined;
+};
+
+// AIAsk Stack - screens accessible from AIAsk tab
+export type AIAskStackParamList = {
+  AIAskMain: { bookId?: string; title?: string } | undefined;
+};
+
+// Cart Stack - screens accessible from Cart tab
+export type CartStackParamList = {
+  CartMain: undefined;
+  Billing: { bookId: string; bookTitle: string; price: number };
+};
+
+// Bottom Tab Navigator
+export type BottomTabParamList = {
+  DashboardTab: NavigatorScreenParams<DashboardStackParamList>;
+  DownloadsTab: NavigatorScreenParams<DownloadsStackParamList>;
+  ProfileTab: NavigatorScreenParams<ProfileStackParamList>;
+  AIAskTab: NavigatorScreenParams<AIAskStackParamList>;
+  CartTab: NavigatorScreenParams<CartStackParamList>;
+};
+
+// Root Navigator
+export type RootStackParamList = {
+  Auth: undefined;
+  Main: NavigatorScreenParams<BottomTabParamList>;
+};
+
+// =============================================================================
+// Screen Props - Auth
+// =============================================================================
 export type SignInScreenProps = NativeStackScreenProps<AuthStackParamList, 'SignIn'>;
 export type SignUpScreenProps = NativeStackScreenProps<AuthStackParamList, 'SignUp'>;
 export type ResetPasswordScreenProps = NativeStackScreenProps<AuthStackParamList, 'ResetPassword'>;
 
-// Main Screen Props
-export type DashboardScreenProps = NativeStackScreenProps<MainStackParamList, 'Dashboard'>;
-export type BookListScreenProps = NativeStackScreenProps<MainStackParamList, 'BookList'>;
-export type BookDetailsScreenProps = NativeStackScreenProps<MainStackParamList, 'BookDetails'>;
-export type ProfileScreenProps = NativeStackScreenProps<MainStackParamList, 'Profile'>;
-export type SettingsScreenProps = NativeStackScreenProps<MainStackParamList, 'Settings'>;
-export type BillingScreenProps = NativeStackScreenProps<MainStackParamList, 'Billing'>;
-export type DownloadsScreenProps = NativeStackScreenProps<MainStackParamList, 'Downloads'>;
-export type PDFViewerScreenProps = NativeStackScreenProps<MainStackParamList, 'PDFViewer'>;
-export type AISummaryScreenProps = NativeStackScreenProps<MainStackParamList, 'AISummary'>;
-export type AIAskScreenProps = NativeStackScreenProps<MainStackParamList, 'AIAsk'>;
+// =============================================================================
+// Screen Props - Dashboard Stack
+// =============================================================================
+export type DashboardScreenProps = CompositeScreenProps<
+  NativeStackScreenProps<DashboardStackParamList, 'DashboardMain'>,
+  BottomTabScreenProps<BottomTabParamList>
+>;
 
-// User Feature Props
-export type WriteReviewScreenProps = NativeStackScreenProps<MainStackParamList, 'WriteReview'>;
-export type BookReviewsScreenProps = NativeStackScreenProps<MainStackParamList, 'BookReviews'>;
-export type PollsScreenProps = NativeStackScreenProps<MainStackParamList, 'Polls'>;
-export type CartScreenProps = NativeStackScreenProps<MainStackParamList, 'Cart'>;
+export type BookListScreenProps = CompositeScreenProps<
+  NativeStackScreenProps<DashboardStackParamList, 'BookList'>,
+  BottomTabScreenProps<BottomTabParamList>
+>;
 
-// Seller Screen Props
-export type UploadScreenProps = NativeStackScreenProps<MainStackParamList, 'Upload'>;
-export type SellerDashboardScreenProps = NativeStackScreenProps<MainStackParamList, 'SellerDashboard'>;
-export type MyBooksScreenProps = NativeStackScreenProps<MainStackParamList, 'MyBooks'>;
-export type SalesReportScreenProps = NativeStackScreenProps<MainStackParamList, 'SalesReport'>;
+export type BookDetailsScreenProps = CompositeScreenProps<
+  NativeStackScreenProps<DashboardStackParamList, 'BookDetails'>,
+  BottomTabScreenProps<BottomTabParamList>
+>;
+
+export type PDFViewerScreenProps = CompositeScreenProps<
+  NativeStackScreenProps<DashboardStackParamList, 'PDFViewer'>,
+  BottomTabScreenProps<BottomTabParamList>
+>;
+
+export type AISummaryScreenProps = CompositeScreenProps<
+  NativeStackScreenProps<DashboardStackParamList, 'AISummary'>,
+  BottomTabScreenProps<BottomTabParamList>
+>;
+
+export type WriteReviewScreenProps = CompositeScreenProps<
+  NativeStackScreenProps<DashboardStackParamList, 'WriteReview'>,
+  BottomTabScreenProps<BottomTabParamList>
+>;
+
+export type BookReviewsScreenProps = CompositeScreenProps<
+  NativeStackScreenProps<DashboardStackParamList, 'BookReviews'>,
+  BottomTabScreenProps<BottomTabParamList>
+>;
+
+export type PollsScreenProps = CompositeScreenProps<
+  NativeStackScreenProps<DashboardStackParamList, 'Polls'>,
+  BottomTabScreenProps<BottomTabParamList>
+>;
+
+export type SellerDashboardScreenProps = CompositeScreenProps<
+  NativeStackScreenProps<DashboardStackParamList, 'SellerDashboard'>,
+  BottomTabScreenProps<BottomTabParamList>
+>;
+
+export type UploadScreenProps = CompositeScreenProps<
+  NativeStackScreenProps<DashboardStackParamList, 'Upload'>,
+  BottomTabScreenProps<BottomTabParamList>
+>;
+
+export type MyBooksScreenProps = CompositeScreenProps<
+  NativeStackScreenProps<DashboardStackParamList, 'MyBooks'>,
+  BottomTabScreenProps<BottomTabParamList>
+>;
+
+export type SalesReportScreenProps = CompositeScreenProps<
+  NativeStackScreenProps<DashboardStackParamList, 'SalesReport'>,
+  BottomTabScreenProps<BottomTabParamList>
+>;
+
+// =============================================================================
+// Screen Props - Downloads Stack
+// =============================================================================
+export type DownloadsScreenProps = CompositeScreenProps<
+  NativeStackScreenProps<DownloadsStackParamList, 'DownloadsMain'>,
+  BottomTabScreenProps<BottomTabParamList>
+>;
+
+// =============================================================================
+// Screen Props - Profile Stack
+// =============================================================================
+export type ProfileScreenProps = CompositeScreenProps<
+  NativeStackScreenProps<ProfileStackParamList, 'ProfileMain'>,
+  BottomTabScreenProps<BottomTabParamList>
+>;
+
+export type SettingsScreenProps = CompositeScreenProps<
+  NativeStackScreenProps<ProfileStackParamList, 'Settings'>,
+  BottomTabScreenProps<BottomTabParamList>
+>;
+
+export type AccountScreenProps = CompositeScreenProps<
+  NativeStackScreenProps<ProfileStackParamList, 'Account'>,
+  BottomTabScreenProps<BottomTabParamList>
+>;
+
+// =============================================================================
+// Screen Props - AIAsk Stack
+// =============================================================================
+export type AIAskScreenProps = CompositeScreenProps<
+  NativeStackScreenProps<AIAskStackParamList, 'AIAskMain'>,
+  BottomTabScreenProps<BottomTabParamList>
+>;
+
+// =============================================================================
+// Screen Props - Cart Stack
+// =============================================================================
+export type CartScreenProps = CompositeScreenProps<
+  NativeStackScreenProps<CartStackParamList, 'CartMain'>,
+  BottomTabScreenProps<BottomTabParamList>
+>;
+
+export type BillingScreenProps = CompositeScreenProps<
+  NativeStackScreenProps<CartStackParamList, 'Billing'>,
+  BottomTabScreenProps<BottomTabParamList>
+>;

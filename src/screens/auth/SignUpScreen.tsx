@@ -9,6 +9,7 @@ import {
   Alert,
   ScrollView,
 } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { Button } from "../../components/Button";
 import { Input } from "../../components/Input";
@@ -22,6 +23,7 @@ type UserRole = "user" | "seller";
 
 export const SignUpScreen: React.FC<SignUpScreenProps> = ({ navigation }) => {
   const { colors } = useTheme();
+  const insets = useSafeAreaInsets();
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -63,6 +65,8 @@ export const SignUpScreen: React.FC<SignUpScreenProps> = ({ navigation }) => {
     setLoading(true);
     try {
       await signUpWithEmail(email, password, name, role);
+      // after successful sign up, navigate to sign in screen
+      navigation.navigate("SignIn");
     } catch (error: any) {
       Alert.alert("Error", error.message || "Sign up failed");
     }
@@ -72,7 +76,14 @@ export const SignUpScreen: React.FC<SignUpScreenProps> = ({ navigation }) => {
   return (
     <KeyboardAvoidingView
       behavior={Platform.OS === "ios" ? "padding" : "height"}
-      style={[styles.container, { backgroundColor: colors.background }]}
+      style={[
+        styles.container,
+        {
+          backgroundColor: colors.background,
+          paddingTop: insets.top,
+          paddingBottom: insets.bottom,
+        },
+      ]}
     >
       <ScrollView
         contentContainerStyle={styles.scrollContent}

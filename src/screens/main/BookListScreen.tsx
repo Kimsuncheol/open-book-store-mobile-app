@@ -7,14 +7,15 @@ import {
   TouchableOpacity,
   TextInput,
 } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { useTheme } from "../../context/ThemeContext";
 import { Book } from "../../services/firestoreService";
 import { spacing, typography, borderRadius } from "../../theme/colors";
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
-import type { MainStackParamList } from "../../types/navigation";
+import type { BookListScreenProps } from "../../types/navigation";
 
-type Props = NativeStackScreenProps<MainStackParamList, "BookList">;
+type Props = BookListScreenProps;
 
 const mockBooks: Book[] = [
   {
@@ -116,7 +117,7 @@ export const BookListScreen: React.FC<Props> = ({ navigation, route }) => {
   );
 
   return (
-    <View style={styles.container}>
+    <SafeAreaView style={styles.container} edges={["top", "bottom"]}>
       <View style={styles.header}>
         <TouchableOpacity onPress={() => navigation.goBack()}>
           <Ionicons name="arrow-back" size={24} color={colors.textPrimary} />
@@ -145,7 +146,7 @@ export const BookListScreen: React.FC<Props> = ({ navigation, route }) => {
           <Text style={styles.emptyText}>No books found</Text>
         }
       />
-    </View>
+    </SafeAreaView>
   );
 };
 
@@ -157,7 +158,7 @@ const createStyles = (colors: any) =>
       alignItems: "center",
       justifyContent: "space-between",
       padding: spacing.lg,
-      paddingTop: spacing.xxl,
+      paddingTop: spacing.xs,
     },
     headerTitle: { ...typography.h3, color: colors.textPrimary },
     searchContainer: {

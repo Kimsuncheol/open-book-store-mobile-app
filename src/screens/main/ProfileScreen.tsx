@@ -7,18 +7,16 @@ import {
   TouchableOpacity,
   Alert,
 } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { Button } from "../../components/Button";
 import { useTheme } from "../../context/ThemeContext";
 import { useAuth } from "../../context/AuthContext";
-import { signOutUser } from "../../services/authService";
+import { signOutUser, deleteUserAccount } from "../../services/authService";
 import { spacing, typography, borderRadius } from "../../theme/colors";
-import type { NativeStackScreenProps } from "@react-navigation/native-stack";
-import type { MainStackParamList } from "../../types/navigation";
+import type { ProfileScreenProps } from "../../types/navigation";
 
-type Props = NativeStackScreenProps<MainStackParamList, "Profile">;
-
-export const ProfileScreen: React.FC<Props> = ({ navigation }) => {
+export const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
   const { colors } = useTheme();
   const { user, isSeller } = useAuth();
 
@@ -29,24 +27,69 @@ export const ProfileScreen: React.FC<Props> = ({ navigation }) => {
     ]);
   };
 
+  const handleSignIn = () => {};
+
   const styles = createStyles(colors);
 
   const allMenuItems = [
     {
       icon: "cloud-download-outline",
       label: "My Downloads",
-      onPress: () => navigation.navigate("Downloads"),
+      onPress: () => {
+        if (!user) {
+          Alert.alert(
+            "Sign In Required",
+            "Please sign in to view your downloads",
+            [
+              { text: "Cancel", style: "cancel" },
+              {
+                text: "Sign In",
+                onPress: () =>
+                  (navigation.getParent() as any)?.navigate("Auth", {
+                    screen: "SignIn",
+                  }),
+              },
+            ]
+          );
+          return;
+        }
+        navigation.navigate("DownloadsTab", { screen: "DownloadsMain" });
+      },
     },
     {
       icon: "card-outline",
       label: "Billing & Purchases",
-      onPress: () =>
-        navigation.navigate("Billing", { bookId: "", bookTitle: "", price: 0 }),
+      onPress: () => {
+        if (!user) {
+          Alert.alert(
+            "Sign In Required",
+            "Please sign in to view billing and purchases",
+            [
+              { text: "Cancel", style: "cancel" },
+              {
+                text: "Sign In",
+                onPress: () =>
+                  (navigation.getParent() as any)?.navigate("Auth", {
+                    screen: "SignIn",
+                  }),
+              },
+            ]
+          );
+          return;
+        }
+        navigation.navigate("CartTab", {
+          screen: "Billing",
+          params: { bookId: "", bookTitle: "", price: 0 },
+        });
+      },
     },
     {
       icon: "cloud-upload-outline",
       label: "Upload Book",
-      onPress: () => navigation.navigate("Upload"),
+      onPress: () =>
+        navigation.navigate("DashboardTab", {
+          screen: "Upload",
+        }),
       sellerOnly: true, // Only show for sellers
     },
     {
@@ -54,73 +97,110 @@ export const ProfileScreen: React.FC<Props> = ({ navigation }) => {
       label: "Settings",
       onPress: () => navigation.navigate("Settings"),
     },
+    {
+      icon: "person-outline",
+      label: "Account",
+      onPress: () => {
+        if (!user) {
+          Alert.alert(
+            "Sign In Required",
+            "Please sign in to access account settings",
+            [
+              { text: "Cancel", style: "cancel" },
+              {
+                text: "Sign In",
+                onPress: () =>
+                  (navigation.getParent() as any)?.navigate("Auth", {
+                    screen: "SignIn",
+                  }),
+              },
+            ]
+          );
+          return;
+        }
+        navigation.navigate("Account");
+      },
+    },
   ];
 
   // Filter menu items based on user role
   const menuItems = allMenuItems.filter((item) => !item.sellerOnly || isSeller);
 
   return (
-    <ScrollView style={styles.container}>
-      <View style={styles.header}>
-        <TouchableOpacity onPress={() => navigation.goBack()}>
-          <Ionicons name="arrow-back" size={24} color={colors.textPrimary} />
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>Profile</Text>
-        <View style={{ width: 24 }} />
-      </View>
-
-      <View style={styles.profileCard}>
-        <View style={styles.avatar}>
-          <Ionicons name="person" size={40} color={colors.textLight} />
+    <SafeAreaView style={styles.container} edges={["top", "bottom"]}>
+      <ScrollView>
+        <View style={styles.header}>
+          <View style={{ width: 24 }} />
+          <Text style={styles.headerTitle}>Profile</Text>
+          <View style={{ width: 24 }} />
         </View>
-        <Text style={styles.name}>{user?.displayName || "Reader"}</Text>
-        <Text style={styles.email}>{user?.email}</Text>
-      </View>
 
-      <View style={styles.statsRow}>
-        <View style={styles.statItem}>
-          <Text style={styles.statValue}>12</Text>
-          <Text style={styles.statLabel}>Books</Text>
+        <View style={styles.profileCard}>
+          <View style={styles.avatar}>
+            <Ionicons name="person" size={40} color={colors.textLight} />
+          </View>
+          <Text style={styles.name}>{user?.displayName || "Reader"}</Text>
+          <Text style={styles.email}>{user?.email}</Text>
         </View>
-        <View style={styles.statItem}>
-          <Text style={styles.statValue}>5</Text>
-          <Text style={styles.statLabel}>Downloads</Text>
-        </View>
-        <View style={styles.statItem}>
-          <Text style={styles.statValue}>3</Text>
-          <Text style={styles.statLabel}>Purchases</Text>
-        </View>
-      </View>
 
-      <View style={styles.menu}>
-        {menuItems.map((item, index) => (
-          <TouchableOpacity
-            key={index}
-            style={styles.menuItem}
-            onPress={item.onPress}
-          >
-            <Ionicons
-              name={item.icon as any}
-              size={22}
-              color={colors.primary}
-            />
-            <Text style={styles.menuLabel}>{item.label}</Text>
-            <Ionicons
-              name="chevron-forward"
-              size={20}
-              color={colors.textMuted}
-            />
-          </TouchableOpacity>
-        ))}
-      </View>
+        <View style={styles.statsRow}>
+          <View style={styles.statItem}>
+            <Text style={styles.statValue}>12</Text>
+            <Text style={styles.statLabel}>Books</Text>
+          </View>
+          <View style={styles.statItem}>
+            <Text style={styles.statValue}>5</Text>
+            <Text style={styles.statLabel}>Downloads</Text>
+          </View>
+          <View style={styles.statItem}>
+            <Text style={styles.statValue}>3</Text>
+            <Text style={styles.statLabel}>Purchases</Text>
+          </View>
+        </View>
 
-      <Button
-        title="Sign Out"
-        onPress={handleSignOut}
-        variant="outline"
-        style={styles.signOutButton}
-      />
-    </ScrollView>
+        <View style={styles.menu}>
+          {menuItems.map((item, index) => (
+            <TouchableOpacity
+              key={index}
+              style={styles.menuItem}
+              onPress={item.onPress}
+            >
+              <Ionicons
+                name={item.icon as any}
+                size={22}
+                color={colors.primary}
+              />
+              <Text style={styles.menuLabel}>{item.label}</Text>
+              <Ionicons
+                name="chevron-forward"
+                size={20}
+                color={colors.textMuted}
+              />
+            </TouchableOpacity>
+          ))}
+        </View>
+        {user ? (
+          <Button
+            title="Sign Out"
+            onPress={handleSignOut}
+            variant="outline"
+            style={styles.signOutButton}
+          />
+        ) : (
+          // navigate to sign in
+          <Button
+            title="Sign In"
+            onPress={() =>
+              (navigation.getParent() as any)?.navigate("Auth", {
+                screen: "SignIn",
+              })
+            }
+            variant="outline"
+            style={styles.signInButton}
+          />
+        )}
+      </ScrollView>
+    </SafeAreaView>
   );
 };
 
@@ -132,7 +212,7 @@ const createStyles = (colors: any) =>
       alignItems: "center",
       justifyContent: "space-between",
       padding: spacing.lg,
-      paddingTop: spacing.xxl,
+      paddingTop: spacing.xs,
     },
     headerTitle: { ...typography.h3, color: colors.textPrimary },
     profileCard: { alignItems: "center", paddingVertical: spacing.xl },
@@ -177,4 +257,5 @@ const createStyles = (colors: any) =>
       marginLeft: spacing.md,
     },
     signOutButton: { marginHorizontal: spacing.lg, marginTop: spacing.lg },
+    signInButton: { marginHorizontal: spacing.lg, marginTop: spacing.lg },
   });

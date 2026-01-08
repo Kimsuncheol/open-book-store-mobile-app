@@ -9,18 +9,12 @@ import {
   KeyboardAvoidingView,
   Platform,
 } from "react-native";
-import {
-  SafeAreaView,
-  useSafeAreaInsets,
-} from "react-native-safe-area-context";
+import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { useTheme } from "../../context/ThemeContext";
 import { askQuestion, clearConversation } from "../../services/aiService";
 import { spacing, typography, borderRadius } from "../../theme/colors";
-import type { NativeStackScreenProps } from "@react-navigation/native-stack";
-import type { MainStackParamList } from "../../types/navigation";
-
-type Props = NativeStackScreenProps<MainStackParamList, "AIAsk">;
+import type { AIAskScreenProps as Props } from "../../types/navigation";
 
 interface Message {
   id: string;
@@ -29,9 +23,9 @@ interface Message {
 }
 
 export const AIAskScreen: React.FC<Props> = ({ navigation, route }) => {
-  const { bookId, title } = route.params;
+  const bookId = route.params?.bookId || "general";
+  const title = route.params?.title || "Open Bookstore";
   const { colors } = useTheme();
-  const insets = useSafeAreaInsets();
   const [messages, setMessages] = useState<Message[]>([
     {
       id: "0",
@@ -43,7 +37,7 @@ export const AIAskScreen: React.FC<Props> = ({ navigation, route }) => {
   const [loading, setLoading] = useState(false);
   const listRef = useRef<FlatList>(null);
 
-  const styles = createStyles(colors, insets.bottom);
+  const styles = createStyles(colors);
 
   const handleSend = async () => {
     if (!input.trim() || loading) return;
@@ -61,7 +55,9 @@ export const AIAskScreen: React.FC<Props> = ({ navigation, route }) => {
       const response = await askQuestion(
         bookId,
         userMsg.content,
-        `Content from ${title}`
+        title === "Open Bookstore"
+          ? "General Assistant"
+          : `Content from ${title}`
       );
       const aiMsg: Message = {
         id: (Date.now() + 1).toString(),
@@ -91,6 +87,7 @@ export const AIAskScreen: React.FC<Props> = ({ navigation, route }) => {
     ]);
   };
 
+  // Return the main view with safe area insets
   return (
     <SafeAreaView style={styles.container} edges={["top", "bottom"]}>
       <KeyboardAvoidingView
@@ -176,7 +173,7 @@ export const AIAskScreen: React.FC<Props> = ({ navigation, route }) => {
   );
 };
 
-const createStyles = (colors: any, bottomInset: number) =>
+const createStyles = (colors: any) =>
   StyleSheet.create({
     container: {
       flex: 1,
@@ -186,8 +183,9 @@ const createStyles = (colors: any, bottomInset: number) =>
     header: {
       flexDirection: "row",
       alignItems: "center",
-      padding: spacing.lg,
-      paddingTop: spacing.xxl,
+      // justifyContent: "center",
+      paddingVertical: spacing.xs,
+      paddingHorizontal: spacing.md,
       borderBottomWidth: 1,
       borderBottomColor: colors.border,
     },
@@ -224,8 +222,7 @@ const createStyles = (colors: any, bottomInset: number) =>
       flexDirection: "row",
       alignItems: "flex-end",
       paddingHorizontal: spacing.md,
-      paddingTop: spacing.md,
-      paddingBottom: bottomInset - 60,
+      paddingVertical: spacing.md,
       borderTopWidth: 1,
       borderTopColor: colors.border,
     },

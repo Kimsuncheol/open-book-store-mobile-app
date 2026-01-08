@@ -26,9 +26,9 @@ import {
 } from "../../services/storageService";
 import { spacing, typography, borderRadius } from "../../theme/colors";
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
-import type { MainStackParamList } from "../../types/navigation";
+import type { BookDetailsScreenProps } from "../../types/navigation";
 
-type Props = NativeStackScreenProps<MainStackParamList, "BookDetails">;
+type Props = BookDetailsScreenProps;
 
 // Mock book data
 const mockBook = {
@@ -65,10 +65,28 @@ export const BookDetailsScreen: React.FC<Props> = ({ navigation, route }) => {
   const userReview = user?.uid ? getUserReview(mockBook.id, user.uid) : null;
 
   const handlePurchase = () => {
-    navigation.navigate("Billing", {
-      bookId: mockBook.id,
-      bookTitle: mockBook.title,
-      price: mockBook.price,
+    // Check if user is authenticated
+    if (!user) {
+      Alert.alert("Sign In Required", "Please sign in to purchase books", [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Sign In",
+          onPress: () =>
+            (navigation.getParent() as any)?.navigate("Auth", {
+              screen: "SignIn",
+            }),
+        },
+      ]);
+      return;
+    }
+
+    navigation.navigate("CartTab", {
+      screen: "Billing",
+      params: {
+        bookId: mockBook.id,
+        bookTitle: mockBook.title,
+        price: mockBook.price,
+      },
     });
   };
 
@@ -101,6 +119,25 @@ export const BookDetailsScreen: React.FC<Props> = ({ navigation, route }) => {
   };
 
   const handleAddToCart = () => {
+    // Check if user is authenticated
+    if (!user) {
+      Alert.alert(
+        "Sign In Required",
+        "Please sign in to add items to your cart",
+        [
+          { text: "Cancel", style: "cancel" },
+          {
+            text: "Sign In",
+            onPress: () =>
+              (navigation.getParent() as any)?.navigate("Auth", {
+                screen: "SignIn",
+              }),
+          },
+        ]
+      );
+      return;
+    }
+
     addToCart({
       id: mockBook.id,
       title: mockBook.title,
@@ -131,11 +168,41 @@ export const BookDetailsScreen: React.FC<Props> = ({ navigation, route }) => {
           <Ionicons name="arrow-back" size={24} color={colors.textPrimary} />
         </TouchableOpacity>
 
-        {/* Book Cover */}
+        {/* Book Cover with AI Buttons */}
         <View style={styles.coverContainer}>
+          {/* AI Buttons on the left */}
+          <View style={styles.aiButtonsLeft}>
+            <TouchableOpacity
+              style={styles.aiButtonCompact}
+              onPress={handleAISummary}
+            >
+              <Ionicons name="sparkles" size={20} color={colors.primary} />
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.aiButtonCompact}
+              onPress={() =>
+                navigation.navigate("AIAskTab", {
+                  screen: "AIAskMain",
+                  params: {
+                    bookId: mockBook.id,
+                    title: mockBook.title,
+                  },
+                })
+              }
+            >
+              <Ionicons
+                name="chatbubble-ellipses"
+                size={20}
+                color={colors.primary}
+              />
+            </TouchableOpacity>
+          </View>
+
+          {/* Book Cover */}
           <View style={styles.cover}>
             <Ionicons name="book" size={80} color={colors.primary} />
           </View>
+          <View style={styles.emptySpace}></View>
         </View>
 
         {/* Book Info */}
@@ -164,30 +231,6 @@ export const BookDetailsScreen: React.FC<Props> = ({ navigation, route }) => {
 
           <Text style={styles.price}>${mockBook.price}</Text>
           <Text style={styles.description}>{mockBook.description}</Text>
-
-          {/* AI Features */}
-          <View style={styles.aiSection}>
-            <TouchableOpacity style={styles.aiButton} onPress={handleAISummary}>
-              <Ionicons name="sparkles" size={20} color={colors.primary} />
-              <Text style={styles.aiButtonText}>AI Summary</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={styles.aiButton}
-              onPress={() =>
-                navigation.navigate("AIAsk", {
-                  bookId: mockBook.id,
-                  title: mockBook.title,
-                })
-              }
-            >
-              <Ionicons
-                name="chatbubble-ellipses"
-                size={20}
-                color={colors.primary}
-              />
-              <Text style={styles.aiButtonText}>Ask AI</Text>
-            </TouchableOpacity>
-          </View>
 
           {/* Reviews Section */}
           <View style={styles.reviewsSection}>
@@ -419,13 +462,27 @@ const createStyles = (colors: any, bottomInset: number) =>
     container: { flex: 1, backgroundColor: colors.background },
     backButton: {
       position: "absolute",
-      top: spacing.xxl,
-      left: spacing.lg,
+      top: spacing.xs,
+      left: spacing.md,
       zIndex: 10,
     },
     coverContainer: {
+      flexDirection: "row",
       alignItems: "center",
+      justifyContent: "center",
       paddingTop: spacing.xxl + spacing.xl,
+      gap: spacing.md,
+    },
+    aiButtonsLeft: {
+      gap: spacing.sm,
+    },
+    aiButtonCompact: {
+      flexDirection: "row",
+      alignItems: "center",
+      backgroundColor: colors.surface,
+      padding: spacing.sm,
+      borderRadius: borderRadius.lg,
+      gap: spacing.xs,
     },
     cover: {
       width: 180,
@@ -546,5 +603,8 @@ const createStyles = (colors: any, bottomInset: number) =>
       paddingBottom: bottomInset - 60,
       borderTopWidth: 1,
       borderTopColor: colors.border,
+    },
+    emptySpace: {
+      width: 28,
     },
   });

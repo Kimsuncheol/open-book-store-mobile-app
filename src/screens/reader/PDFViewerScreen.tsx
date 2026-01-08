@@ -1,17 +1,18 @@
 import React, { useState } from "react";
 import { View, Text, StyleSheet, TouchableOpacity } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { WebView } from "react-native-webview";
 import { Ionicons } from "@expo/vector-icons";
 import { useTheme } from "../../context/ThemeContext";
 import { spacing, typography } from "../../theme/colors";
-import type { NativeStackScreenProps } from "@react-navigation/native-stack";
-import type { MainStackParamList } from "../../types/navigation";
+import type { PDFViewerScreenProps } from "../../types/navigation";
 
-type Props = NativeStackScreenProps<MainStackParamList, "PDFViewer">;
+type Props = PDFViewerScreenProps;
 
 export const PDFViewerScreen: React.FC<Props> = ({ navigation, route }) => {
   const { title, filePath, bookId } = route.params;
   const { colors, isDark } = useTheme();
+  const insets = useSafeAreaInsets();
   const [nightMode, setNightMode] = useState(isDark);
 
   const styles = createStyles(colors);
@@ -23,7 +24,11 @@ export const PDFViewerScreen: React.FC<Props> = ({ navigation, route }) => {
 
   return (
     <View
-      style={[styles.container, nightMode && { backgroundColor: "#1a1a1a" }]}
+      style={[
+        styles.container,
+        nightMode && { backgroundColor: "#1a1a1a" },
+        { paddingTop: insets.top, paddingBottom: insets.bottom },
+      ]}
     >
       <View style={styles.header}>
         <TouchableOpacity onPress={() => navigation.goBack()}>
