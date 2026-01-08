@@ -174,8 +174,7 @@ export const CartScreen: React.FC<CartScreenProps> = ({ navigation }) => {
                 style={[styles.browseBtn, { backgroundColor: PRIMARY }]}
                 onPress={() =>
                   navigation.navigate("DashboardTab", {
-                    screen: "BookList",
-                    params: {},
+                    screen: "DashboardMain",
                   })
                 }
               >

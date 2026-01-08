@@ -36,6 +36,9 @@ export const UploadScreen: React.FC<Props> = ({ navigation }) => {
             }),
         },
       ]);
+    } else {
+      setAuthor(user.displayName || "");
+      setLoading(false);
     }
   }, [navigation, user]);
 

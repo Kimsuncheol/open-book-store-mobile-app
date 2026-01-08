@@ -63,7 +63,7 @@ export type BottomTabParamList = {
 
 // Root Navigator
 export type RootStackParamList = {
-  Auth: undefined;
+  Auth: NavigatorScreenParams<AuthStackParamList>;
   Main: NavigatorScreenParams<BottomTabParamList>;
 };
 
@@ -79,7 +79,10 @@ export type ResetPasswordScreenProps = NativeStackScreenProps<AuthStackParamList
 // =============================================================================
 export type DashboardScreenProps = CompositeScreenProps<
   NativeStackScreenProps<DashboardStackParamList, 'DashboardMain'>,
-  BottomTabScreenProps<BottomTabParamList>
+  CompositeScreenProps<
+    BottomTabScreenProps<BottomTabParamList>,
+    NativeStackScreenProps<RootStackParamList>
+  >
 >;
 
 export type BookListScreenProps = CompositeScreenProps<

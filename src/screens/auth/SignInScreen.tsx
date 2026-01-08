@@ -127,9 +127,6 @@ export const SignInScreen: React.FC<SignInScreenProps> = ({ navigation }) => {
             style={styles.logo}
             resizeMode="cover"
           />
-          <Text style={[styles.title, { color: colors.textPrimary }]}>
-            Welcome Back
-          </Text>
         </View>
 
         {/* Form Section */}
