@@ -8,7 +8,6 @@ import { useAuth } from "../context/AuthContext";
 import type {
   BottomTabParamList,
   DashboardStackParamList,
-  DownloadsStackParamList,
   ProfileStackParamList,
   AIAskStackParamList,
   CartStackParamList,
@@ -37,7 +36,6 @@ import { SalesReportScreen } from "../screens/seller/SalesReportScreen";
 
 const Tab = createBottomTabNavigator<BottomTabParamList>();
 const DashboardStack = createNativeStackNavigator<DashboardStackParamList>();
-const DownloadsStack = createNativeStackNavigator<DownloadsStackParamList>();
 const ProfileStack = createNativeStackNavigator<ProfileStackParamList>();
 const AIAskStack = createNativeStackNavigator<AIAskStackParamList>();
 const CartStack = createNativeStackNavigator<CartStackParamList>();
@@ -133,17 +131,6 @@ function DashboardStackNavigator() {
 }
 
 // =============================================================================
-// Downloads Stack Navigator
-// =============================================================================
-function DownloadsStackNavigator() {
-  return (
-    <DownloadsStack.Navigator screenOptions={{ headerShown: false }}>
-      <DownloadsStack.Screen name="DownloadsMain" component={DownloadsScreen} />
-    </DownloadsStack.Navigator>
-  );
-}
-
-// =============================================================================
 // Profile Stack Navigator
 // =============================================================================
 function ProfileStackNavigator() {
@@ -170,6 +157,11 @@ function ProfileStackNavigator() {
       <ProfileStack.Screen
         name="Account"
         component={AccountScreen}
+        options={{ headerShown: false }}
+      />
+      <ProfileStack.Screen
+        name="Downloads"
+        component={DownloadsScreen}
         options={{ headerShown: false }}
       />
     </ProfileStack.Navigator>

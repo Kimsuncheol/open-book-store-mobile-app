@@ -53,7 +53,7 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
           );
           return;
         }
-        navigation.navigate("DownloadsTab", { screen: "DownloadsMain" });
+        navigation.navigate("Downloads");
       },
     },
     {

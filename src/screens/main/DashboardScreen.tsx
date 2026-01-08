@@ -210,7 +210,7 @@ export const DashboardScreen: React.FC<Props> = ({ navigation }) => {
           <TouchableOpacity
             style={styles.actionButton}
             onPress={() =>
-              navigation.navigate("DownloadsTab", { screen: "DownloadsMain" })
+              navigation.navigate("ProfileTab", { screen: "Downloads" })
             }
           >
             <Ionicons name="cloud-download" size={24} color={colors.primary} />

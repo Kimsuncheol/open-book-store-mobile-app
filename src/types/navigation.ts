@@ -37,6 +37,7 @@ export type ProfileStackParamList = {
   ProfileMain: undefined;
   Settings: undefined;
   Account: undefined;
+  Downloads: undefined;
 };
 
 // AIAsk Stack - screens accessible from AIAsk tab
@@ -53,7 +54,6 @@ export type CartStackParamList = {
 // Bottom Tab Navigator
 export type BottomTabParamList = {
   DashboardTab: NavigatorScreenParams<DashboardStackParamList>;
-  DownloadsTab: NavigatorScreenParams<DownloadsStackParamList>;
   ProfileTab: NavigatorScreenParams<ProfileStackParamList>;
   AIAskTab: NavigatorScreenParams<AIAskStackParamList>;
   CartTab: NavigatorScreenParams<CartStackParamList>;
@@ -136,10 +136,10 @@ export type SalesReportScreenProps = CompositeScreenProps<
 >;
 
 // =============================================================================
-// Screen Props - Downloads Stack
+// Screen Props - Downloads (now part of Profile Stack)
 // =============================================================================
 export type DownloadsScreenProps = CompositeScreenProps<
-  NativeStackScreenProps<DownloadsStackParamList, 'DownloadsMain'>,
+  NativeStackScreenProps<ProfileStackParamList, 'Downloads'>,
   BottomTabScreenProps<BottomTabParamList>
 >;
 
