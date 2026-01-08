@@ -20,6 +20,7 @@ export type DashboardStackParamList = {
   WriteReview: { bookId: string; bookTitle: string };
   BookReviews: { bookId: string; bookTitle: string };
   Polls: undefined;
+  Trending: undefined;
   // Seller screens (accessible from Dashboard if user is seller)
   SellerDashboard: undefined;
   Upload: undefined;
@@ -38,6 +39,8 @@ export type ProfileStackParamList = {
   Settings: undefined;
   Account: undefined;
   Downloads: undefined;
+  Subscription: undefined;
+  SubscriptionBilling: undefined;
 };
 
 // AIAsk Stack - screens accessible from AIAsk tab
@@ -48,7 +51,6 @@ export type AIAskStackParamList = {
 // Cart Stack - screens accessible from Cart tab
 export type CartStackParamList = {
   CartMain: undefined;
-  Billing: { bookId: string; bookTitle: string; price: number };
 };
 
 // Bottom Tab Navigator
@@ -115,6 +117,11 @@ export type PollsScreenProps = CompositeScreenProps<
   BottomTabScreenProps<BottomTabParamList>
 >;
 
+export type TrendingScreenProps = CompositeScreenProps<
+  NativeStackScreenProps<DashboardStackParamList, 'Trending'>,
+  BottomTabScreenProps<BottomTabParamList>
+>;
+
 export type SellerDashboardScreenProps = CompositeScreenProps<
   NativeStackScreenProps<DashboardStackParamList, 'SellerDashboard'>,
   BottomTabScreenProps<BottomTabParamList>
@@ -161,6 +168,16 @@ export type AccountScreenProps = CompositeScreenProps<
   BottomTabScreenProps<BottomTabParamList>
 >;
 
+export type SubscriptionScreenProps = CompositeScreenProps<
+  NativeStackScreenProps<ProfileStackParamList, 'Subscription'>,
+  BottomTabScreenProps<BottomTabParamList>
+>;
+
+export type SubscriptionBillingScreenProps = CompositeScreenProps<
+  NativeStackScreenProps<ProfileStackParamList, 'SubscriptionBilling'>,
+  BottomTabScreenProps<BottomTabParamList>
+>;
+
 // =============================================================================
 // Screen Props - AIAsk Stack
 // =============================================================================
@@ -174,10 +191,5 @@ export type AIAskScreenProps = CompositeScreenProps<
 // =============================================================================
 export type CartScreenProps = CompositeScreenProps<
   NativeStackScreenProps<CartStackParamList, 'CartMain'>,
-  BottomTabScreenProps<BottomTabParamList>
->;
-
-export type BillingScreenProps = CompositeScreenProps<
-  NativeStackScreenProps<CartStackParamList, 'Billing'>,
   BottomTabScreenProps<BottomTabParamList>
 >;

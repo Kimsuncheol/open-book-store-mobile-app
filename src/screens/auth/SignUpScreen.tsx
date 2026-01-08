@@ -8,6 +8,7 @@ import {
   Platform,
   Alert,
   ScrollView,
+  Image,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
@@ -19,16 +20,13 @@ import { signUpWithEmail } from "../../services/authService";
 import { spacing } from "../../theme/colors";
 import type { SignUpScreenProps } from "../../types/navigation";
 
-type UserRole = "user" | "seller";
-
 export const SignUpScreen: React.FC<SignUpScreenProps> = ({ navigation }) => {
-  const { colors } = useTheme();
+  const { colors, isDark } = useTheme();
   const insets = useSafeAreaInsets();
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
-  const [role, setRole] = useState<UserRole>("user");
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
 
@@ -64,7 +62,7 @@ export const SignUpScreen: React.FC<SignUpScreenProps> = ({ navigation }) => {
     if (!validate()) return;
     setLoading(true);
     try {
-      await signUpWithEmail(email, password, name, role);
+      await signUpWithEmail(email, password, name);
       // after successful sign up, navigate to sign in screen
       navigation.navigate("SignIn");
     } catch (error: any) {
@@ -97,70 +95,20 @@ export const SignUpScreen: React.FC<SignUpScreenProps> = ({ navigation }) => {
           <Ionicons name="arrow-back" size={24} color={PRIMARY} />
         </TouchableOpacity>
 
-        {/* Minimalist Header */}
+        {/* Header with Logo */}
         <View style={styles.header}>
-          <View style={[styles.square, { backgroundColor: PRIMARY }]} />
+          <Image
+            source={
+              isDark
+                ? require("../../../assets/scribd_logo_darkmode.png")
+                : require("../../../assets/scribd_logo.png")
+            }
+            style={styles.logo}
+            resizeMode="cover"
+          />
           <Text style={[styles.title, { color: colors.textPrimary }]}>
             Create Account
           </Text>
-          <View style={[styles.underline, { backgroundColor: PRIMARY }]} />
-        </View>
-
-        {/* Role Selection */}
-        <View style={styles.roleContainer}>
-          <Text style={[styles.roleLabel, { color: colors.textSecondary }]}>
-            I want to:
-          </Text>
-          <View style={styles.roleButtons}>
-            <TouchableOpacity
-              style={[
-                styles.roleButton,
-                role === "user" && {
-                  backgroundColor: PRIMARY,
-                  borderColor: PRIMARY,
-                },
-              ]}
-              onPress={() => setRole("user")}
-            >
-              <Ionicons
-                name="book-outline"
-                size={20}
-                color={role === "user" ? "#FFFFFF" : PRIMARY}
-              />
-              <Text
-                style={[
-                  styles.roleText,
-                  { color: role === "user" ? "#FFFFFF" : PRIMARY },
-                ]}
-              >
-                Read Books
-              </Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[
-                styles.roleButton,
-                role === "seller" && {
-                  backgroundColor: PRIMARY,
-                  borderColor: PRIMARY,
-                },
-              ]}
-              onPress={() => setRole("seller")}
-            >
-              <Ionicons
-                name="storefront-outline"
-                size={20}
-                color={role === "seller" ? "#FFFFFF" : PRIMARY}
-              />
-              <Text
-                style={[
-                  styles.roleText,
-                  { color: role === "seller" ? "#FFFFFF" : PRIMARY },
-                ]}
-              >
-                Sell Books
-              </Text>
-            </TouchableOpacity>
-          </View>
         </View>
 
         {/* Form Section */}
@@ -226,24 +174,12 @@ const styles = StyleSheet.create({
     marginTop: spacing.lg,
     marginBottom: spacing.lg,
   },
-  square: { width: 4, height: 60, marginBottom: spacing.md },
-  title: { fontSize: 28, fontWeight: "300", letterSpacing: 1 },
-  underline: { width: 60, height: 2, marginTop: spacing.sm },
-  roleContainer: { marginBottom: spacing.lg },
-  roleLabel: { fontSize: 14, marginBottom: spacing.sm },
-  roleButtons: { flexDirection: "row", gap: spacing.md },
-  roleButton: {
-    flex: 1,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    padding: spacing.md,
-    borderRadius: 12,
-    borderWidth: 2,
-    borderColor: "#8B4513",
-    gap: spacing.sm,
+  logo: {
+    width: 200,
+    height: 60,
+    marginBottom: spacing.md,
   },
-  roleText: { fontSize: 14, fontWeight: "500" },
+  title: { fontSize: 28, fontWeight: "300", letterSpacing: 1 },
   form: { flex: 1 },
   footer: {
     flexDirection: "row",

@@ -4,12 +4,10 @@ import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { useTheme } from "../context/ThemeContext";
-import { useAuth } from "../context/AuthContext";
 import type {
   BottomTabParamList,
   DashboardStackParamList,
   ProfileStackParamList,
-  AIAskStackParamList,
   CartStackParamList,
 } from "../types/navigation";
 
@@ -23,12 +21,14 @@ import { AIAskScreen } from "../screens/ai/AIAskScreen";
 import { WriteReviewScreen } from "../screens/main/WriteReviewScreen";
 import { BookReviewsScreen } from "../screens/main/BookReviewsScreen";
 import { PollsScreen } from "../screens/main/PollsScreen";
+import { TrendingScreen } from "../screens/main/TrendingScreen";
 import { DownloadsScreen } from "../screens/main/DownloadsScreen";
 import { ProfileScreen } from "../screens/main/ProfileScreen";
 import { SettingsScreen } from "../screens/main/SettingsScreen";
 import { AccountScreen } from "../screens/main/AccountScreen";
+import { SubscriptionScreen } from "../screens/main/SubscriptionScreen";
+import { SubscriptionBillingScreen } from "../screens/main/SubscriptionBillingScreen";
 import { CartScreen } from "../screens/main/CartScreen";
-import { BillingScreen } from "../screens/billing/BillingScreen";
 import { SellerDashboardScreen } from "../screens/seller/SellerDashboardScreen";
 import { UploadScreen } from "../screens/main/UploadScreen";
 import { MyBooksScreen } from "../screens/seller/MyBooksScreen";
@@ -37,7 +37,6 @@ import { SalesReportScreen } from "../screens/seller/SalesReportScreen";
 const Tab = createBottomTabNavigator<BottomTabParamList>();
 const DashboardStack = createNativeStackNavigator<DashboardStackParamList>();
 const ProfileStack = createNativeStackNavigator<ProfileStackParamList>();
-const AIAskStack = createNativeStackNavigator<AIAskStackParamList>();
 const CartStack = createNativeStackNavigator<CartStackParamList>();
 
 // =============================================================================
@@ -45,7 +44,6 @@ const CartStack = createNativeStackNavigator<CartStackParamList>();
 // =============================================================================
 function DashboardStackNavigator() {
   const { colors } = useTheme();
-  const { isSeller } = useAuth();
 
   return (
     <DashboardStack.Navigator
@@ -100,32 +98,32 @@ function DashboardStackNavigator() {
         component={PollsScreen}
         options={{ headerShown: false }}
       />
+      <DashboardStack.Screen
+        name="Trending"
+        component={TrendingScreen}
+        options={{ headerShown: false }}
+      />
 
-      {/* Seller-only screens */}
-      {isSeller && (
-        <>
-          <DashboardStack.Screen
-            name="SellerDashboard"
-            component={SellerDashboardScreen}
-            options={{ headerShown: false }}
-          />
-          <DashboardStack.Screen
-            name="Upload"
-            component={UploadScreen}
-            options={{ headerShown: false }}
-          />
-          <DashboardStack.Screen
-            name="MyBooks"
-            component={MyBooksScreen}
-            options={{ headerShown: false }}
-          />
-          <DashboardStack.Screen
-            name="SalesReport"
-            component={SalesReportScreen}
-            options={{ headerShown: false }}
-          />
-        </>
-      )}
+      <DashboardStack.Screen
+        name="SellerDashboard"
+        component={SellerDashboardScreen}
+        options={{ headerShown: false }}
+      />
+      <DashboardStack.Screen
+        name="Upload"
+        component={UploadScreen}
+        options={{ headerShown: false }}
+      />
+      <DashboardStack.Screen
+        name="MyBooks"
+        component={MyBooksScreen}
+        options={{ headerShown: false }}
+      />
+      <DashboardStack.Screen
+        name="SalesReport"
+        component={SalesReportScreen}
+        options={{ headerShown: false }}
+      />
     </DashboardStack.Navigator>
   );
 }
@@ -160,22 +158,21 @@ function ProfileStackNavigator() {
         options={{ headerShown: false }}
       />
       <ProfileStack.Screen
+        name="Subscription"
+        component={SubscriptionScreen}
+        options={{ headerShown: false }}
+      />
+      <ProfileStack.Screen
+        name="SubscriptionBilling"
+        component={SubscriptionBillingScreen}
+        options={{ headerShown: false }}
+      />
+      <ProfileStack.Screen
         name="Downloads"
         component={DownloadsScreen}
         options={{ headerShown: false }}
       />
     </ProfileStack.Navigator>
-  );
-}
-
-// =============================================================================
-// AIAsk Stack Navigator
-// =============================================================================
-function AIAskStackNavigator() {
-  return (
-    <AIAskStack.Navigator screenOptions={{ headerShown: false }}>
-      <AIAskStack.Screen name="AIAskMain" component={AIAskScreen as any} />
-    </AIAskStack.Navigator>
   );
 }
 
@@ -196,11 +193,6 @@ function CartStackNavigator() {
       <CartStack.Screen
         name="CartMain"
         component={CartScreen}
-        options={{ headerShown: false }}
-      />
-      <CartStack.Screen
-        name="Billing"
-        component={BillingScreen}
         options={{ headerShown: false }}
       />
     </CartStack.Navigator>
@@ -252,16 +244,6 @@ export const BottomTabNavigator: React.FC = () => {
           tabBarLabel: "Home",
           tabBarIcon: ({ color, size }) => (
             <Ionicons name="home-outline" size={size} color={color} />
-          ),
-        }}
-      />
-      <Tab.Screen
-        name="AIAskTab"
-        component={AIAskStackNavigator}
-        options={{
-          tabBarLabel: "AI Ask",
-          tabBarIcon: ({ color, size }) => (
-            <Ionicons name="sparkles-outline" size={size} color={color} />
           ),
         }}
       />

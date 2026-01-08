@@ -15,17 +15,10 @@ import { Ionicons } from "@expo/vector-icons";
 import { Button } from "../../components/Button";
 import { useTheme } from "../../context/ThemeContext";
 import { useAuth } from "../../context/AuthContext";
-import { useCart } from "../../context/CartContext";
 import { useReviews } from "../../context/ReviewsContext";
 import { StarRating } from "../../components/StarRating";
-import { hasPurchased } from "../../services/firestoreService";
-import {
-  isBookDownloaded,
-  downloadPDF,
-  getLocalBookPath,
-} from "../../services/storageService";
+import { downloadPDF, getLocalBookPath } from "../../services/storageService";
 import { spacing, typography, borderRadius } from "../../theme/colors";
-import type { NativeStackScreenProps } from "@react-navigation/native-stack";
 import type { BookDetailsScreenProps } from "../../types/navigation";
 
 type Props = BookDetailsScreenProps;
@@ -50,7 +43,6 @@ export const BookDetailsScreen: React.FC<Props> = ({ navigation, route }) => {
   const { colors } = useTheme();
   const insets = useSafeAreaInsets();
   const { user } = useAuth();
-  const { addToCart } = useCart();
   const { getBookReviews, getAverageRating, getUserReview, deleteReview } =
     useReviews();
   const [loading, setLoading] = useState(false);
@@ -63,32 +55,6 @@ export const BookDetailsScreen: React.FC<Props> = ({ navigation, route }) => {
   const reviews = getBookReviews(mockBook.id);
   const averageRating = getAverageRating(mockBook.id);
   const userReview = user?.uid ? getUserReview(mockBook.id, user.uid) : null;
-
-  const handlePurchase = () => {
-    // Check if user is authenticated
-    if (!user) {
-      Alert.alert("Sign In Required", "Please sign in to purchase books", [
-        { text: "Cancel", style: "cancel" },
-        {
-          text: "Sign In",
-          onPress: () =>
-            (navigation.getParent() as any)?.navigate("Auth", {
-              screen: "SignIn",
-            }),
-        },
-      ]);
-      return;
-    }
-
-    navigation.navigate("CartTab", {
-      screen: "Billing",
-      params: {
-        bookId: mockBook.id,
-        bookTitle: mockBook.title,
-        price: mockBook.price,
-      },
-    });
-  };
 
   const handleDownload = async () => {
     setLoading(true);
@@ -118,44 +84,21 @@ export const BookDetailsScreen: React.FC<Props> = ({ navigation, route }) => {
     });
   };
 
-  const handleAddToCart = () => {
-    // Check if user is authenticated
+  const handleBorrow = async () => {
     if (!user) {
-      Alert.alert(
-        "Sign In Required",
-        "Please sign in to add items to your cart",
-        [
-          { text: "Cancel", style: "cancel" },
-          {
-            text: "Sign In",
-            onPress: () =>
-              (navigation.getParent() as any)?.navigate("Auth", {
-                screen: "SignIn",
-              }),
-          },
-        ]
-      );
+      Alert.alert("Sign In Required", "Please sign in to borrow books", [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Sign In",
+          onPress: () =>
+            (navigation.getParent() as any)?.navigate("Auth", {
+              screen: "SignIn",
+            }),
+        },
+      ]);
       return;
     }
-
-    addToCart({
-      id: mockBook.id,
-      title: mockBook.title,
-      author: mockBook.author,
-      description: mockBook.description,
-      price: mockBook.price,
-      rating: mockBook.rating,
-      downloads: mockBook.downloads,
-      coverUrl: "",
-      pdfUrl: mockBook.pdfUrl,
-      category: mockBook.category,
-      createdAt: new Date(),
-      uploadedBy: "",
-    });
-    Alert.alert(
-      "Added to Cart",
-      `${mockBook.title} has been added to your cart`
-    );
+    await handleDownload();
   };
 
   return (
@@ -229,7 +172,6 @@ export const BookDetailsScreen: React.FC<Props> = ({ navigation, route }) => {
             </View>
           </View>
 
-          <Text style={styles.price}>${mockBook.price}</Text>
           <Text style={styles.description}>{mockBook.description}</Text>
 
           {/* Reviews Section */}
@@ -431,26 +373,11 @@ export const BookDetailsScreen: React.FC<Props> = ({ navigation, route }) => {
             }
           />
         ) : (
-          <>
-            <Button
-              title="Add to Cart"
-              onPress={handleAddToCart}
-              variant="outline"
-              style={{ flex: 1, marginRight: spacing.sm }}
-              icon={
-                <Ionicons
-                  name="cart-outline"
-                  size={20}
-                  color={colors.primary}
-                />
-              }
-            />
-            <Button
-              title={`Buy $${mockBook.price}`}
-              onPress={handlePurchase}
-              style={{ flex: 1 }}
-            />
-          </>
+          <Button
+            title="Borrow for free"
+            onPress={handleBorrow}
+            style={{ flex: 1 }}
+          />
         )}
       </View>
     </SafeAreaView>
@@ -519,12 +446,6 @@ const createStyles = (colors: any, bottomInset: number) =>
       ...typography.bodySmall,
       color: colors.textSecondary,
       marginLeft: 4,
-    },
-    price: {
-      ...typography.h2,
-      color: colors.primary,
-      textAlign: "center",
-      marginTop: spacing.lg,
     },
     description: {
       ...typography.body,

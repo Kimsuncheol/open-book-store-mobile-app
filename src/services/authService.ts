@@ -35,11 +35,14 @@ export const signUpWithEmail = async (
   const result = await createUserWithEmailAndPassword(auth, email, password);
   if (result.user) {
     await updateProfile(result.user, { displayName });
-    // Store user profile with role in Firestore
+    // Store user profile with role and subscription in Firestore
     await setDoc(doc(db, 'users', result.user.uid), {
       email,
       displayName,
       role,
+      subscriptionStatus: 'free',
+      subscriptionStartDate: null,
+      subscriptionEndDate: null,
       createdAt: new Date().toISOString(),
     });
   }
@@ -59,13 +62,16 @@ export const getUserRole = async (uid: string): Promise<UserRole> => {
 export const signInWithGoogle = async (idToken: string) => {
   const credential = GoogleAuthProvider.credential(idToken);
   const result = await signInWithCredential(auth, credential);
-  // Check if user exists in Firestore, if not create with default role
+  // Check if user exists in Firestore, if not create with default role and subscription
   const userDoc = await getDoc(doc(db, 'users', result.user.uid));
   if (!userDoc.exists()) {
     await setDoc(doc(db, 'users', result.user.uid), {
       email: result.user.email,
       displayName: result.user.displayName,
       role: 'user',
+      subscriptionStatus: 'free',
+      subscriptionStartDate: null,
+      subscriptionEndDate: null,
       createdAt: new Date().toISOString(),
     });
   }

@@ -8,6 +8,7 @@ import {
   Platform,
   Alert,
   ScrollView,
+  Image,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
@@ -26,7 +27,7 @@ import type { SignInScreenProps } from "../../types/navigation";
 const REMEMBER_EMAIL_KEY = "@openBookStore:rememberedEmail";
 
 export const SignInScreen: React.FC<SignInScreenProps> = ({ navigation }) => {
-  const { colors } = useTheme();
+  const { colors, isDark } = useTheme();
   const insets = useSafeAreaInsets();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -115,15 +116,20 @@ export const SignInScreen: React.FC<SignInScreenProps> = ({ navigation }) => {
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
       >
-        {/* Minimalist Header with Circle */}
+        {/* Header with Logo */}
         <View style={styles.header}>
-          <View style={[styles.circle, { backgroundColor: PRIMARY }]}>
-            <Ionicons name="book-outline" size={48} color="#FFFFFF" />
-          </View>
+          <Image
+            source={
+              isDark
+                ? require("../../../assets/scribd_logo_darkmode.png")
+                : require("../../../assets/scribd_logo.png")
+            }
+            style={styles.logo}
+            resizeMode="cover"
+          />
           <Text style={[styles.title, { color: colors.textPrimary }]}>
             Welcome Back
           </Text>
-          <View style={[styles.underline, { backgroundColor: PRIMARY }]} />
         </View>
 
         {/* Form Section */}
@@ -229,16 +235,12 @@ const styles = StyleSheet.create({
     marginTop: spacing.xxl * 2,
     marginBottom: spacing.xxl,
   },
-  circle: {
-    width: 120,
-    height: 120,
-    borderRadius: 60,
-    alignItems: "center",
-    justifyContent: "center",
+  logo: {
+    width: 200,
+    height: 60,
     marginBottom: spacing.lg,
   },
   title: { fontSize: 32, fontWeight: "300", letterSpacing: 1 },
-  underline: { width: 60, height: 2, marginTop: spacing.sm },
   form: { flex: 1, minHeight: 300 },
   optionsRow: {
     flexDirection: "row",

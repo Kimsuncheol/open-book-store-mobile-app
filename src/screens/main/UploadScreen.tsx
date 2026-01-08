@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { View, Text, StyleSheet, TouchableOpacity, Alert } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import * as DocumentPicker from "expo-document-picker";
@@ -24,6 +24,21 @@ export const UploadScreen: React.FC<Props> = ({ navigation }) => {
 
   const styles = createStyles(colors);
 
+  useEffect(() => {
+    if (!user) {
+      Alert.alert("Sign In Required", "Please sign in to upload books", [
+        { text: "Cancel", style: "cancel", onPress: () => navigation.goBack() },
+        {
+          text: "Sign In",
+          onPress: () =>
+            (navigation.getParent() as any)?.navigate("Auth", {
+              screen: "SignIn",
+            }),
+        },
+      ]);
+    }
+  }, [navigation, user]);
+
   const pickFile = async () => {
     const result = await DocumentPicker.getDocumentAsync({
       type: "application/pdf",
@@ -35,6 +50,19 @@ export const UploadScreen: React.FC<Props> = ({ navigation }) => {
   };
 
   const handleUpload = async () => {
+    if (!user) {
+      Alert.alert("Sign In Required", "Please sign in to upload books", [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Sign In",
+          onPress: () =>
+            (navigation.getParent() as any)?.navigate("Auth", {
+              screen: "SignIn",
+            }),
+        },
+      ]);
+      return;
+    }
     if (!file || !title) {
       Alert.alert("Error", "Please select a file and enter a title");
       return;

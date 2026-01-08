@@ -18,7 +18,7 @@ import type { ProfileScreenProps } from "../../types/navigation";
 
 export const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
   const { colors } = useTheme();
-  const { user, isSeller } = useAuth();
+  const { user } = useAuth();
 
   const handleSignOut = () => {
     Alert.alert("Sign Out", "Are you sure you want to sign out?", [
@@ -57,13 +57,18 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
       },
     },
     {
-      icon: "card-outline",
-      label: "Billing & Purchases",
+      icon: "sparkles-outline",
+      label: "Subscription",
+      onPress: () => navigation.navigate("Subscription"),
+    },
+    {
+      icon: "cloud-upload-outline",
+      label: "Upload Book",
       onPress: () => {
         if (!user) {
           Alert.alert(
             "Sign In Required",
-            "Please sign in to view billing and purchases",
+            "Please sign in to upload books",
             [
               { text: "Cancel", style: "cancel" },
               {
@@ -77,20 +82,10 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
           );
           return;
         }
-        navigation.navigate("CartTab", {
-          screen: "Billing",
-          params: { bookId: "", bookTitle: "", price: 0 },
-        });
-      },
-    },
-    {
-      icon: "cloud-upload-outline",
-      label: "Upload Book",
-      onPress: () =>
         navigation.navigate("DashboardTab", {
           screen: "Upload",
-        }),
-      sellerOnly: true, // Only show for sellers
+        });
+      },
     },
     {
       icon: "settings-outline",
@@ -122,9 +117,6 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
       },
     },
   ];
-
-  // Filter menu items based on user role
-  const menuItems = allMenuItems.filter((item) => !item.sellerOnly || isSeller);
 
   return (
     <SafeAreaView style={styles.container} edges={["top", "bottom"]}>
@@ -159,7 +151,7 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
         </View>
 
         <View style={styles.menu}>
-          {menuItems.map((item, index) => (
+          {allMenuItems.map((item, index) => (
             <TouchableOpacity
               key={index}
               style={styles.menuItem}
