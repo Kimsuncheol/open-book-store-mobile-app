@@ -17,7 +17,6 @@ import type {
 import { DashboardScreen } from "../screens/main/DashboardScreen";
 import { BookListScreen } from "../screens/main/BookListScreen";
 import { BookDetailsScreen } from "../screens/main/BookDetailsScreen";
-import { PDFViewerScreen } from "../screens/reader/PDFViewerScreen";
 import { AISummaryScreen } from "../screens/ai/AISummaryScreen";
 import { AIAskScreen } from "../screens/ai/AIAskScreen";
 import { WriteReviewScreen } from "../screens/main/WriteReviewScreen";
@@ -68,11 +67,6 @@ function DashboardStackNavigator() {
         name="BookDetails"
         component={BookDetailsScreen}
         options={{ title: t("navigation.bookDetails"), headerShown: false }}
-      />
-      <DashboardStack.Screen
-        name="PDFViewer"
-        component={PDFViewerScreen}
-        options={{ headerShown: false }}
       />
       <DashboardStack.Screen
         name="AISummary"

@@ -14,10 +14,9 @@ import { Ionicons } from "@expo/vector-icons";
 import { useTheme } from "../../context/ThemeContext";
 import { useLanguage } from "../../context/LanguageContext";
 import { useAuth } from "../../context/AuthContext";
-import { askQuestion, clearConversation } from "../../services/aiService";
+import { askQuestion } from "../../services/aiService";
 import {
   addAIChatMessage,
-  clearAIChatMessages,
   getAIChatMessages,
 } from "../../services/firestoreService";
 import { Shimmer } from "../../components/Shimmer";
@@ -121,18 +120,6 @@ export const AIAskScreen: React.FC<Props> = ({ navigation, route }) => {
     setLoading(false);
   };
 
-  const handleClear = () => {
-    clearConversation(bookId);
-    clearAIChatMessages(userId, bookId).catch(() => undefined);
-    setMessages([
-      {
-        id: "0",
-        role: "assistant",
-        content: t("aiAsk.intro", { title }),
-      },
-    ]);
-  };
-
   // Return the main view with safe area insets
   return (
     <SafeAreaView style={styles.container} edges={["top", "bottom"]}>
@@ -151,9 +138,7 @@ export const AIAskScreen: React.FC<Props> = ({ navigation, route }) => {
               {title}
             </Text>
           </View>
-          <TouchableOpacity onPress={handleClear}>
-            <Ionicons name="trash-outline" size={22} color={colors.textMuted} />
-          </TouchableOpacity>
+          <View style={{ width: 24 }} />
         </View>
 
         <FlatList

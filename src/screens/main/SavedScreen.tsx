@@ -3,7 +3,6 @@ import {
   View,
   Text,
   StyleSheet,
-  FlatList,
   TouchableOpacity,
   Alert,
   TextInput,
@@ -14,26 +13,42 @@ import { Ionicons } from "@expo/vector-icons";
 import { useTheme } from "../../context/ThemeContext";
 import { useAuth } from "../../context/AuthContext";
 import { useSaved } from "../../context/SavedContext";
-import { Button } from "../../components/Button";
+import { Shimmer } from "../../components/Shimmer";
 import {
   searchBooksWithAI,
   simpleBookSearch,
-  AISearchResult,
 } from "../../services/aiSearchService";
 import { Book } from "../../services/firestoreService";
-import { addUserDownload, incrementUserDownloads } from "../../services/firestoreService";
+import {
+  addUserDownload,
+  incrementUserDownloads,
+} from "../../services/firestoreService";
 import { downloadPDF } from "../../services/storageService";
 import { spacing } from "../../theme/colors";
 import type { SavedScreenProps } from "../../types/navigation";
 import { useLanguage } from "../../context/LanguageContext";
+import { removeSavedBooks } from "../../services/savedBooksService";
+
+const SavedList = React.lazy(() => import("./SavedList"));
 
 export const SavedScreen: React.FC<SavedScreenProps> = ({ navigation }) => {
   const { colors } = useTheme();
   const { user } = useAuth();
-  const { savedItems, removeFromSaved, clearSaved, loadSavedBooks } = useSaved();
-  const [paymentLoading, setPaymentLoading] = React.useState(false);
+  const {
+    savedItems,
+    removeFromSaved,
+    removeMultipleFromSaved,
+    clearSaved,
+    loadSavedBooks,
+  } = useSaved();
   const [downloadingId, setDownloadingId] = React.useState<string | null>(null);
   const { t } = useLanguage();
+  const [loadingSaved, setLoadingSaved] = React.useState(false);
+  const [selectionMode, setSelectionMode] = React.useState(false);
+  const [selectedIds, setSelectedIds] = React.useState<Set<string>>(
+    () => new Set()
+  );
+  const [deletingSelected, setDeletingSelected] = React.useState(false);
 
   // Search State
   const [search, setSearch] = React.useState("");
@@ -42,6 +57,8 @@ export const SavedScreen: React.FC<SavedScreenProps> = ({ navigation }) => {
   const [filteredItems, setFilteredItems] = React.useState(savedItems);
 
   const PRIMARY = "#8B4513";
+  const skeletonItems = Array.from({ length: 3 }, (_, index) => index);
+  const selectedCount = selectedIds.size;
 
   // Update filtered items when savedItems change
   React.useEffect(() => {
@@ -52,13 +69,27 @@ export const SavedScreen: React.FC<SavedScreenProps> = ({ navigation }) => {
 
   React.useEffect(() => {
     if (user) {
-      loadSavedBooks(user.uid).catch((error) =>
-        console.error("Error loading saved books:", error)
-      );
+      setLoadingSaved(true);
+      loadSavedBooks(user.uid)
+        .catch((error) => console.error("Error loading saved books:", error))
+        .finally(() => setLoadingSaved(false));
     } else {
       clearSaved();
+      setLoadingSaved(false);
     }
   }, [user, loadSavedBooks, clearSaved]);
+
+  React.useEffect(() => {
+    if (!selectionMode) return;
+    const savedIdSet = new Set(savedItems.map((item) => item.book.id));
+    setSelectedIds((prev) => {
+      const next = new Set<string>();
+      prev.forEach((id) => {
+        if (savedIdSet.has(id)) next.add(id);
+      });
+      return next;
+    });
+  }, [savedItems, selectionMode]);
 
   // Handle AI Search
   const handleAiSearch = async () => {
@@ -143,8 +174,86 @@ export const SavedScreen: React.FC<SavedScreenProps> = ({ navigation }) => {
     }
   };
 
+  const toggleSelectionMode = () => {
+    if (selectionMode) {
+      setSelectionMode(false);
+      setSelectedIds(new Set());
+      return;
+    }
+    setSelectionMode(true);
+  };
+
+  const toggleSelected = (bookId: string) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(bookId)) {
+        next.delete(bookId);
+      } else {
+        next.add(bookId);
+      }
+      return next;
+    });
+  };
+
+  const handleSelectAll = () => {
+    if (selectedCount === savedItems.length) {
+      setSelectedIds(new Set());
+      return;
+    }
+    setSelectedIds(new Set(savedItems.map((item) => item.book.id)));
+  };
+
+  const handleDeleteSelected = () => {
+    if (!user || selectedCount === 0 || deletingSelected) return;
+    Alert.alert(
+      "Delete Saved Books",
+      `Remove ${selectedCount} selected item${selectedCount > 1 ? "s" : ""}?`,
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Delete",
+          style: "destructive",
+          onPress: async () => {
+            setDeletingSelected(true);
+            try {
+              const ids = Array.from(selectedIds);
+              await removeSavedBooks(ids, user.uid);
+              removeMultipleFromSaved(ids);
+              setFilteredItems((prev) =>
+                prev.filter((item) => !ids.includes(item.book.id))
+              );
+              setSelectedIds(new Set());
+              setSelectionMode(false);
+            } catch (error) {
+              console.error("Failed to delete saved books:", error);
+              Alert.alert(
+                "Delete Failed",
+                "Could not delete selected books. Please try again."
+              );
+            } finally {
+              setDeletingSelected(false);
+            }
+          },
+        },
+      ]
+    );
+  };
+
   const renderSavedItem = ({ item }: { item: (typeof savedItems)[0] }) => (
     <View style={[styles.cartItem, { backgroundColor: colors.surface }]}>
+      {selectionMode && (
+        <TouchableOpacity
+          style={[
+            styles.checkbox,
+            selectedIds.has(item.book.id) && styles.checkboxSelected,
+          ]}
+          onPress={() => toggleSelected(item.book.id)}
+        >
+          {selectedIds.has(item.book.id) && (
+            <Ionicons name="checkmark" size={14} color="#FFFFFF" />
+          )}
+        </TouchableOpacity>
+      )}
       <View style={[styles.bookIcon, { backgroundColor: PRIMARY + "20" }]}>
         <Ionicons name="book-outline" size={32} color={PRIMARY} />
       </View>
@@ -165,15 +274,9 @@ export const SavedScreen: React.FC<SavedScreenProps> = ({ navigation }) => {
           <TouchableOpacity
             style={[styles.readBtn, { backgroundColor: PRIMARY }]}
             onPress={() =>
-              navigation.navigate("DashboardTab", {
-                screen: "PDFViewer",
-                params: {
-                  bookId: item.book.id,
-                  title: item.book.title,
-                  filePath: "", // Will be handled by PDFViewer
-                },
-              })
+              Alert.alert("Reader", "Reader screen is unavailable.")
             }
+            disabled={selectionMode}
           >
             <Ionicons name="book-outline" size={16} color="#FFFFFF" />
             <Text style={styles.actionBtnText}>Read Now</Text>
@@ -187,7 +290,7 @@ export const SavedScreen: React.FC<SavedScreenProps> = ({ navigation }) => {
                 downloadingId === item.book.id && styles.iconBtnDisabled,
               ]}
               onPress={() => handleDownload(item.book)}
-              disabled={downloadingId === item.book.id}
+              disabled={downloadingId === item.book.id || selectionMode}
             >
               <Ionicons name="download-outline" size={18} color={PRIMARY} />
             </TouchableOpacity>
@@ -198,6 +301,7 @@ export const SavedScreen: React.FC<SavedScreenProps> = ({ navigation }) => {
                 { backgroundColor: colors.surface, borderColor: colors.border },
               ]}
               onPress={() => removeFromSaved(item.book.id)}
+              disabled={selectionMode}
             >
               <Ionicons
                 name="bookmark"
@@ -211,7 +315,7 @@ export const SavedScreen: React.FC<SavedScreenProps> = ({ navigation }) => {
     </View>
   );
 
-  const styles = createStyles(colors);
+  const styles = createStyles(colors, PRIMARY);
 
   return (
     <SafeAreaView
@@ -251,70 +355,114 @@ export const SavedScreen: React.FC<SavedScreenProps> = ({ navigation }) => {
             <Text style={[styles.headerTitle, { color: colors.textPrimary }]}>
               {t("saved.title")}
             </Text>
-            {savedItems.length > 0 && (
-              <TouchableOpacity
-                onPress={() =>
-                  Alert.alert("Clear Cart", "Remove all items?", [
-                    { text: "Cancel", style: "cancel" },
-                    {
-                      text: "Clear",
-                      style: "destructive",
-                      onPress: clearSaved,
-                    },
-                  ])
-                }
-              >
-                <Ionicons
-                  name="trash-outline"
-                  size={24}
-                  color={colors.textPrimary}
-                />
-              </TouchableOpacity>
-            )}
-            {savedItems.length === 0 && <View style={{ width: 24 }} />}
+            <View style={{ width: 24 }} />
           </View>
 
           {/* Search Bar */}
           {savedItems.length > 0 && (
-            <View style={styles.searchContainer}>
-              <Ionicons name="search" size={18} color={colors.textMuted} />
-              <TextInput
-                style={[styles.searchInput, { color: colors.textPrimary }]}
-                placeholder={
-                  aiMode
-                    ? "Ask AI to find items in your cart..."
-                    : "Search cart items..."
-                }
-                placeholderTextColor={colors.textMuted}
-                value={search}
-                onChangeText={(text) => {
-                  setSearch(text);
-                  if (!text.trim()) {
-                    setFilteredItems(savedItems);
+            <>
+              <View style={styles.searchContainer}>
+                <Ionicons name="search" size={18} color={colors.textMuted} />
+                <TextInput
+                  style={[styles.searchInput, { color: colors.textPrimary }]}
+                  placeholder={
+                    aiMode
+                      ? "Ask AI to find items in your cart..."
+                      : "Search cart items..."
                   }
-                }}
-                onSubmitEditing={handleSearch}
-                returnKeyType="search"
-              />
-              {aiSearching ? (
-                <ActivityIndicator size="small" color={PRIMARY} />
-              ) : (
+                  placeholderTextColor={colors.textMuted}
+                  value={search}
+                  onChangeText={(text) => {
+                    setSearch(text);
+                    if (!text.trim()) {
+                      setFilteredItems(savedItems);
+                    }
+                  }}
+                  onSubmitEditing={handleSearch}
+                  returnKeyType="search"
+                />
+                {aiSearching ? (
+                  <ActivityIndicator size="small" color={PRIMARY} />
+                ) : (
+                  <TouchableOpacity
+                    onPress={() => setAiMode(!aiMode)}
+                    style={[styles.aiToggle, aiMode && styles.aiToggleActive]}
+                    disabled={selectionMode}
+                  >
+                    <Ionicons
+                      name="sparkles"
+                      size={18}
+                      color={aiMode ? PRIMARY : colors.textMuted}
+                    />
+                  </TouchableOpacity>
+                )}
+              </View>
+              <View style={styles.searchActionsRow}>
                 <TouchableOpacity
-                  onPress={() => setAiMode(!aiMode)}
-                  style={[styles.aiToggle, aiMode && styles.aiToggleActive]}
+                  onPress={toggleSelectionMode}
+                  style={styles.trashBtn}
                 >
                   <Ionicons
-                    name="sparkles"
-                    size={18}
-                    color={aiMode ? PRIMARY : colors.textMuted}
+                    name={selectionMode ? "close" : "trash-outline"}
+                    size={16}
+                    color={PRIMARY}
                   />
                 </TouchableOpacity>
-              )}
-            </View>
+                {selectionMode && (
+                  <>
+                    <TouchableOpacity
+                      onPress={handleSelectAll}
+                      style={styles.selectAllBtn}
+                    >
+                      <Ionicons
+                        name={
+                          selectedCount === savedItems.length
+                            ? "checkbox-outline"
+                            : "square-outline"
+                        }
+                        size={16}
+                        color={PRIMARY}
+                      />
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      onPress={handleDeleteSelected}
+                      style={[
+                        styles.deleteBtn,
+                        selectedCount === 0 && styles.deleteBtnDisabled,
+                      ]}
+                      disabled={selectedCount === 0 || deletingSelected}
+                    >
+                      <Ionicons name="trash" size={16} color="#FFFFFF" />
+                    </TouchableOpacity>
+                  </>
+                )}
+              </View>
+            </>
           )}
-
-          {/* Cart Items */}
-          {savedItems.length === 0 ? (
+          {/* saved books */}
+          {loadingSaved ? (
+            <View style={styles.list}>
+              {skeletonItems.map((index) => (
+                <View
+                  key={`saved-skeleton-${index}`}
+                  style={[styles.cartItem, styles.skeletonCard]}
+                >
+                  <Shimmer style={styles.skeletonIcon} />
+                  <View style={styles.itemInfo}>
+                    <Shimmer style={styles.skeletonTitle} />
+                    <Shimmer style={styles.skeletonAuthor} />
+                    <View style={styles.skeletonActions}>
+                      <Shimmer style={styles.skeletonPrimary} />
+                      <View style={styles.skeletonSecondary}>
+                        <Shimmer style={styles.skeletonIconBtn} />
+                        <Shimmer style={styles.skeletonIconBtn} />
+                      </View>
+                    </View>
+                  </View>
+                </View>
+              ))}
+            </View>
+          ) : savedItems.length === 0 ? (
             <View style={styles.emptyState}>
               <Ionicons
                 name="cart-outline"
@@ -362,12 +510,26 @@ export const SavedScreen: React.FC<SavedScreenProps> = ({ navigation }) => {
               </TouchableOpacity>
             </View>
           ) : (
-            <FlatList
-              data={filteredItems}
-              renderItem={renderSavedItem}
-              keyExtractor={(item) => item.book.id}
-              contentContainerStyle={styles.list}
-            />
+            <React.Suspense
+              fallback={
+                <View style={styles.listFallback}>
+                  <ActivityIndicator size="small" color={PRIMARY} />
+                </View>
+              }
+            >
+              <SavedList
+                data={filteredItems}
+                renderItem={renderSavedItem}
+                keyExtractor={(item) => item.book.id}
+                contentContainerStyle={styles.list}
+                extraData={{
+                  selectionMode,
+                  selectedCount,
+                  selectedIds,
+                  downloadingId,
+                }}
+              />
+            </React.Suspense>
           )}
         </>
       )}
@@ -375,7 +537,7 @@ export const SavedScreen: React.FC<SavedScreenProps> = ({ navigation }) => {
   );
 };
 
-const createStyles = (colors: any) =>
+const createStyles = (colors: any, primary: string) =>
   StyleSheet.create({
     container: { flex: 1 },
     header: {
@@ -386,11 +548,74 @@ const createStyles = (colors: any) =>
     },
     headerTitle: { fontSize: 20, fontWeight: "600" },
     list: { padding: spacing.lg, gap: spacing.md },
+    listFallback: {
+      padding: spacing.lg,
+      alignItems: "center",
+      justifyContent: "center",
+    },
+    skeletonCard: {
+      borderWidth: 1,
+      borderColor: colors.border,
+      backgroundColor: colors.surface,
+    },
+    skeletonIcon: {
+      width: 60,
+      height: 60,
+      borderRadius: 8,
+      backgroundColor: colors.border,
+    },
+    skeletonTitle: {
+      height: 14,
+      borderRadius: 6,
+      backgroundColor: colors.border,
+      width: "80%",
+      marginBottom: spacing.sm,
+    },
+    skeletonAuthor: {
+      height: 12,
+      borderRadius: 6,
+      backgroundColor: colors.border,
+      width: "50%",
+      marginBottom: spacing.md,
+    },
+    skeletonActions: {
+      gap: spacing.sm,
+    },
+    skeletonPrimary: {
+      height: 32,
+      borderRadius: 8,
+      backgroundColor: colors.border,
+      width: "70%",
+    },
+    skeletonSecondary: {
+      flexDirection: "row",
+      gap: spacing.sm,
+    },
+    skeletonIconBtn: {
+      flex: 1,
+      height: 36,
+      borderRadius: 8,
+      backgroundColor: colors.border,
+    },
     cartItem: {
       flexDirection: "row",
       padding: spacing.md,
       borderRadius: 12,
       alignItems: "center",
+    },
+    checkbox: {
+      width: 22,
+      height: 22,
+      borderRadius: 6,
+      borderWidth: 1,
+      borderColor: primary,
+      alignItems: "center",
+      justifyContent: "center",
+      marginRight: spacing.sm,
+      backgroundColor: "transparent",
+    },
+    checkboxSelected: {
+      backgroundColor: primary,
     },
     bookIcon: {
       width: 60,
@@ -474,6 +699,51 @@ const createStyles = (colors: any) =>
       borderRadius: 12,
       marginLeft: 8,
       backgroundColor: "transparent",
+    },
+    searchActions: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 6,
+      marginLeft: 8,
+    },
+    searchActionsRow: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 6,
+      marginHorizontal: spacing.lg,
+      marginBottom: spacing.md,
+      justifyContent: "flex-end",
+    },
+    trashBtn: {
+      width: 28,
+      height: 28,
+      borderRadius: 10,
+      borderWidth: 1,
+      borderColor: colors.border,
+      alignItems: "center",
+      justifyContent: "center",
+      backgroundColor: colors.surface,
+    },
+    selectAllBtn: {
+      width: 28,
+      height: 28,
+      borderRadius: 10,
+      borderWidth: 1,
+      borderColor: colors.border,
+      alignItems: "center",
+      justifyContent: "center",
+      backgroundColor: colors.surface,
+    },
+    deleteBtn: {
+      paddingHorizontal: 10,
+      height: 28,
+      borderRadius: 10,
+      alignItems: "center",
+      justifyContent: "center",
+      backgroundColor: primary,
+    },
+    deleteBtnDisabled: {
+      opacity: 0.5,
     },
     aiToggleActive: {
       backgroundColor: "rgba(139, 69, 19, 0.12)",

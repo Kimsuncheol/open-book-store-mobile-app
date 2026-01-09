@@ -14,7 +14,6 @@ import { useAuth } from "../../context/AuthContext";
 import {
   getDownloadedBooks,
   deleteDownloadedBook,
-  getLocalBookPath,
 } from "../../services/storageService";
 import { spacing, typography, borderRadius } from "../../theme/colors";
 import type { DownloadsScreenProps } from "../../types/navigation";
@@ -68,16 +67,8 @@ export const DownloadsScreen: React.FC<Props> = ({ navigation }) => {
     ]);
   };
 
-  const handleOpen = (bookId: string) => {
-    const filePath = getLocalBookPath(bookId);
-    navigation.navigate("DashboardTab", {
-      screen: "PDFViewer",
-      params: {
-        bookId,
-        title: `Book ${bookId}`,
-        filePath,
-      },
-    });
+  const handleOpen = () => {
+    Alert.alert("Reader", "Reader screen is unavailable.");
   };
 
   const styles = createStyles(colors);
@@ -172,7 +163,7 @@ export const DownloadsScreen: React.FC<Props> = ({ navigation }) => {
                     </View>
                     <TouchableOpacity
                       style={styles.bookInfo}
-                      onPress={() => handleOpen(item.id)}
+                      onPress={() => handleOpen()}
                     >
                       <View style={styles.uploadedRow}>
                         <Text style={styles.uploadedLabel}>UPLOADED BY</Text>

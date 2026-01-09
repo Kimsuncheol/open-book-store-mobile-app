@@ -14,7 +14,6 @@ export type DashboardStackParamList = {
   DashboardMain: undefined;
   BookList: { category?: string };
   BookDetails: { bookId: string };
-  PDFViewer: { bookId: string; title: string; filePath: string };
   AISummary: { bookId: string; title: string };
   AIAsk: { bookId?: string; title?: string } | undefined;
   WriteReview: { bookId: string; bookTitle: string };
@@ -88,11 +87,6 @@ export type BookListScreenProps = CompositeScreenProps<
 
 export type BookDetailsScreenProps = CompositeScreenProps<
   NativeStackScreenProps<DashboardStackParamList, 'BookDetails'>,
-  BottomTabScreenProps<BottomTabParamList>
->;
-
-export type PDFViewerScreenProps = CompositeScreenProps<
-  NativeStackScreenProps<DashboardStackParamList, 'PDFViewer'>,
   BottomTabScreenProps<BottomTabParamList>
 >;
 

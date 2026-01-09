@@ -160,13 +160,7 @@ export const BookDetailsScreen: React.FC<Props> = ({ navigation, route }) => {
 
         <TouchableOpacity
           style={styles.cta}
-          onPress={() =>
-            navigation.navigate("PDFViewer", {
-              bookId: book.id,
-              title: book.title,
-              filePath: "",
-            })
-          }
+          onPress={() => Alert.alert("Reader", "Reader screen is unavailable.")}
         >
           <Text style={styles.ctaText}>Read Now</Text>
         </TouchableOpacity>
