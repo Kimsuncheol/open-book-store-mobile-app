@@ -78,7 +78,11 @@ export const BookListScreen: React.FC<Props> = ({ navigation, route }) => {
     }
   };
 
-  const renderBook = ({ item }: { item: Book | { id: string; skeleton: true } }) => {
+  const renderBook = ({
+    item,
+  }: {
+    item: Book | { id: string; skeleton: true };
+  }) => {
     if ("skeleton" in item) {
       return (
         <View style={styles.bookRow}>
@@ -102,38 +106,40 @@ export const BookListScreen: React.FC<Props> = ({ navigation, route }) => {
         style={styles.bookRow}
         onPress={() => navigation.navigate("BookDetails", { bookId: item.id })}
       >
-      <View style={styles.coverWrapper}>
-        <View style={styles.bookCover}>
-          <Ionicons name="book-outline" size={40} color="#111111" />
+        <View style={styles.coverWrapper}>
+          <View style={styles.bookCover}>
+            <Ionicons name="book-outline" size={40} color="#111111" />
+          </View>
+          <View style={styles.formatBadge}>
+            <Text style={styles.formatText}>PDF</Text>
+          </View>
         </View>
-        <View style={styles.formatBadge}>
-          <Text style={styles.formatText}>PDF</Text>
+        <View style={styles.bookInfo}>
+          <View style={styles.uploadedRow}>
+            <Text style={styles.uploadedLabel}>UPLOADED BY</Text>
+            <Ionicons name="person" size={14} color={colors.textMuted} />
+          </View>
+          <Text style={styles.bookTitle} numberOfLines={2}>
+            {item.title}
+          </Text>
+          <Text style={styles.pageCount}>
+            {item.downloads
+              ? Math.max(12, Math.round(item.downloads / 100))
+              : 32}{" "}
+            pages
+          </Text>
         </View>
-      </View>
-      <View style={styles.bookInfo}>
-        <View style={styles.uploadedRow}>
-          <Text style={styles.uploadedLabel}>UPLOADED BY</Text>
-          <Ionicons name="person" size={14} color={colors.textMuted} />
-        </View>
-        <Text style={styles.bookTitle} numberOfLines={2}>
-          {item.title}
-        </Text>
-        <Text style={styles.pageCount}>
-          {item.downloads ? Math.max(12, Math.round(item.downloads / 100)) : 32}{" "}
-          pages
-        </Text>
-      </View>
-      <TouchableOpacity
-        style={styles.saveButton}
-        onPress={() => handleToggleSave(item)}
-        disabled={savingId === item.id}
-      >
-        <Ionicons
-          name={isSaved ? "bookmark" : "bookmark-outline"}
-          size={22}
-          color={isSaved ? "#FFFFFF" : colors.textMuted}
-        />
-      </TouchableOpacity>
+        <TouchableOpacity
+          style={styles.saveButton}
+          onPress={() => handleToggleSave(item)}
+          disabled={savingId === item.id}
+        >
+          <Ionicons
+            name={isSaved ? "bookmark" : "bookmark-outline"}
+            size={22}
+            color={isSaved ? "#FFFFFF" : colors.textMuted}
+          />
+        </TouchableOpacity>
       </TouchableOpacity>
     );
   };
@@ -144,7 +150,7 @@ export const BookListScreen: React.FC<Props> = ({ navigation, route }) => {
   }));
 
   return (
-    <SafeAreaView style={styles.container} edges={["top", "bottom"]}>
+    <SafeAreaView style={styles.container} edges={["top"]}>
       <View style={styles.header}>
         <TouchableOpacity onPress={() => navigation.goBack()}>
           <Ionicons name="arrow-back" size={24} color={colors.textPrimary} />

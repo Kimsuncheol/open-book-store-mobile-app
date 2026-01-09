@@ -53,7 +53,7 @@ export type BottomTabParamList = {
   DashboardTab: NavigatorScreenParams<DashboardStackParamList>;
   ProfileTab: NavigatorScreenParams<ProfileStackParamList>;
   AIAskTab: NavigatorScreenParams<AIAskStackParamList>;
-  CartTab: NavigatorScreenParams<SavedStackParamList>;
+  SaveTab: NavigatorScreenParams<SavedStackParamList>;
 };
 
 // Root Navigator

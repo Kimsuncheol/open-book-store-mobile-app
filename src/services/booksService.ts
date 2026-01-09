@@ -4,12 +4,23 @@ import {
   getDoc,
   getDocs,
   setDoc,
+  updateDoc,
   query,
   where,
   orderBy,
   limit,
 } from "firebase/firestore";
 import { db } from "../config/firebase";
+
+export interface BookAnalysis {
+  status: 'pending' | 'analyzing' | 'completed' | 'failed';
+  analyzedAt: Date;
+  summary: string;
+  topics: string[];
+  themes: string[];
+  keyPoints: string[];
+  error?: string;
+}
 
 export interface Book {
   id: string;
@@ -24,6 +35,7 @@ export interface Book {
   downloads: number;
   createdAt: Date;
   uploadedBy: string;
+  analyze?: BookAnalysis;
 }
 
 export interface Purchase {
@@ -84,4 +96,15 @@ export const getUserUploadCount = async (userId: string): Promise<number> => {
   const q = query(collection(db, "books"), where("uploadedBy", "==", userId));
   const snapshot = await getDocs(q);
   return snapshot.size;
+};
+
+/**
+ * Update the analysis field of a book document
+ */
+export const updateBookAnalysis = async (
+  bookId: string,
+  analysis: BookAnalysis
+): Promise<void> => {
+  const docRef = doc(db, "books", bookId);
+  await updateDoc(docRef, { analyze: analysis });
 };

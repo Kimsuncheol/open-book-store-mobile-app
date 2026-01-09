@@ -6,9 +6,7 @@ import {
   ScrollView,
   TouchableOpacity,
   FlatList,
-  TextInput,
   Alert,
-  ActivityIndicator,
   Image,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -32,6 +30,8 @@ import type { DashboardScreenProps } from "../../types/navigation";
 import { useTranslation } from "react-i18next";
 import { BookDetailsBottomSheet } from "./BookDetailsBottomSheet";
 import { Shimmer } from "../../components/Shimmer";
+import { SearchBar } from "../../components/dashboard/SearchBar";
+import { AiSearchBottomSheet } from "../../components/dashboard/AiSearchBottomSheet";
 
 type Props = DashboardScreenProps;
 
@@ -60,6 +60,12 @@ export const DashboardScreen: React.FC<Props> = ({ navigation }) => {
   const [savingId, setSavingId] = useState<string | null>(null);
 
   const styles = createStyles(colors);
+  const feedItems = books.slice(0, 8);
+  const newReleaseItems = books.slice(0, 8);
+  const moreItems = books.slice(8, 16);
+  const topRatedItems = [...books]
+    .sort((a, b) => (b.rating || 0) - (a.rating || 0))
+    .slice(0, 8);
 
   // Fetch books from Firestore
   useEffect(() => {
@@ -84,12 +90,13 @@ export const DashboardScreen: React.FC<Props> = ({ navigation }) => {
     }
 
     setAiSearching(true);
+    setShowAiResults(true);
     try {
       const results = await searchBooksWithAI(search, books);
       setAiResults(results);
-      setShowAiResults(true);
     } catch (error: any) {
       console.error("AI search error:", error);
+      setAiResults([]);
       if (error.message?.includes("API key")) {
         Alert.alert(
           "AI Search Unavailable",
@@ -105,11 +112,20 @@ export const DashboardScreen: React.FC<Props> = ({ navigation }) => {
     setAiSearching(false);
   };
 
+  const handleAiToggle = () => {
+    const nextMode = !aiMode;
+    setAiMode(nextMode);
+    if (!nextMode) {
+      setShowAiResults(false);
+    }
+  };
+
   // Handle normal search
   const handleSearch = () => {
     if (aiMode) {
       handleAiSearch();
     } else {
+      setShowAiResults(false);
       const filtered = simpleBookSearch(search, books);
       setBooks(filtered);
     }
@@ -145,7 +161,10 @@ export const DashboardScreen: React.FC<Props> = ({ navigation }) => {
     const isSaved = savedItems.some((saved) => saved.book.id === item.id);
 
     return (
-      <TouchableOpacity style={styles.bookCard} onPress={() => openBookSheet(item)}>
+      <TouchableOpacity
+        style={styles.bookCard}
+        onPress={() => openBookSheet(item)}
+      >
         <View style={styles.bookCover}>
           <View style={styles.bookCoverAccent} />
           <Ionicons name="book-outline" size={40} color={SCRIBD_INK} />
@@ -178,7 +197,7 @@ export const DashboardScreen: React.FC<Props> = ({ navigation }) => {
   };
 
   return (
-    <SafeAreaView style={styles.container} edges={["top", "bottom"]}>
+    <SafeAreaView style={styles.container} edges={["top"]}>
       <View style={styles.backgroundAccent} />
       <ScrollView
         style={{ flex: 1 }}
@@ -197,35 +216,15 @@ export const DashboardScreen: React.FC<Props> = ({ navigation }) => {
           />
         </View>
 
-        <View style={styles.searchContainer}>
-          <Ionicons name="search" size={18} color={colors.textMuted} />
-          <TextInput
-            style={styles.searchInput}
-            placeholder={
-              aiMode
-                ? `${t("dashboard.searchBar.aiPlaceholder")}`
-                : `${t("dashboard.searchBar.placeholder")}`
-            }
-            placeholderTextColor={colors.textMuted}
-            value={search}
-            onChangeText={setSearch}
-            onSubmitEditing={handleSearch}
-            returnKeyType="search"
+        <View style={styles.searchWrapper}>
+          <SearchBar
+            search={search}
+            onSearchChange={setSearch}
+            onSubmit={handleSearch}
+            aiMode={aiMode}
+            onAIModeToggle={handleAiToggle}
+            aiSearching={aiSearching}
           />
-          {aiSearching ? (
-            <ActivityIndicator size="small" color={SCRIBD_ACCENT} />
-          ) : (
-            <TouchableOpacity
-              onPress={() => setAiMode(!aiMode)}
-              style={[styles.aiToggle, aiMode && styles.aiToggleActive]}
-            >
-              <Ionicons
-                name="sparkles"
-                size={18}
-                color={aiMode ? SCRIBD_ACCENT : colors.textMuted}
-              />
-            </TouchableOpacity>
-          )}
         </View>
 
         {!isSubscribed && (
@@ -277,7 +276,10 @@ export const DashboardScreen: React.FC<Props> = ({ navigation }) => {
             </View>
             <View style={styles.skeletonRow}>
               {Array.from({ length: 3 }).map((_, index) => (
-                <View key={`featured-skeleton-${index}`} style={styles.skeletonCard}>
+                <View
+                  key={`featured-skeleton-${index}`}
+                  style={styles.skeletonCard}
+                >
                   <Shimmer style={styles.skeletonCover} />
                   <Shimmer style={styles.skeletonLine} />
                   <Shimmer style={styles.skeletonLineSmall} />
@@ -313,7 +315,9 @@ export const DashboardScreen: React.FC<Props> = ({ navigation }) => {
                 <Text style={styles.sectionTitle}>
                   {t("dashboard.trendingNow")}
                 </Text>
-                <TouchableOpacity onPress={() => navigation.navigate("BookList", {})}>
+                <TouchableOpacity
+                  onPress={() => navigation.navigate("BookList", {})}
+                >
                   <Text style={styles.sectionLink}>{t("dashboard.more")}</Text>
                 </TouchableOpacity>
               </View>
@@ -326,6 +330,106 @@ export const DashboardScreen: React.FC<Props> = ({ navigation }) => {
                 showsHorizontalScrollIndicator={false}
               />
             </View>
+
+            {feedItems.length > 0 && (
+              <View style={styles.section}>
+                <View style={styles.sectionHeader}>
+                  <Text style={styles.sectionTitle}>
+                    {t("dashboard.feed.title")}
+                  </Text>
+                  <TouchableOpacity
+                    onPress={() => navigation.navigate("BookList", {})}
+                  >
+                    <Text style={styles.sectionLink}>
+                      {t("dashboard.more")}
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+                <FlatList
+                  horizontal
+                  data={feedItems}
+                  renderItem={renderBook}
+                  keyExtractor={(item) => item.id}
+                  contentContainerStyle={styles.bookList}
+                  showsHorizontalScrollIndicator={false}
+                />
+              </View>
+            )}
+
+            {newReleaseItems.length > 0 && (
+              <View style={styles.section}>
+                <View style={styles.sectionHeader}>
+                  <Text style={styles.sectionTitle}>
+                    {t("dashboard.newReleases")}
+                  </Text>
+                  <TouchableOpacity
+                    onPress={() => navigation.navigate("BookList", {})}
+                  >
+                    <Text style={styles.sectionLink}>
+                      {t("dashboard.more")}
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+                <FlatList
+                  horizontal
+                  data={newReleaseItems}
+                  renderItem={renderBook}
+                  keyExtractor={(item) => item.id}
+                  contentContainerStyle={styles.bookList}
+                  showsHorizontalScrollIndicator={false}
+                />
+              </View>
+            )}
+
+            {moreItems.length > 0 && (
+              <View style={styles.section}>
+                <View style={styles.sectionHeader}>
+                  <Text style={styles.sectionTitle}>
+                    {t("dashboard.moreForYou")}
+                  </Text>
+                  <TouchableOpacity
+                    onPress={() => navigation.navigate("BookList", {})}
+                  >
+                    <Text style={styles.sectionLink}>
+                      {t("dashboard.more")}
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+                <FlatList
+                  horizontal
+                  data={moreItems}
+                  renderItem={renderBook}
+                  keyExtractor={(item) => item.id}
+                  contentContainerStyle={styles.bookList}
+                  showsHorizontalScrollIndicator={false}
+                />
+              </View>
+            )}
+
+            {topRatedItems.length > 0 && (
+              <View style={styles.section}>
+                <View style={styles.sectionHeader}>
+                  <Text style={styles.sectionTitle}>
+                    {t("dashboard.topRated")}
+                  </Text>
+                  <TouchableOpacity
+                    onPress={() => navigation.navigate("BookList", {})}
+                  >
+                    <Text style={styles.sectionLink}>
+                      {t("dashboard.more")}
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+                <FlatList
+                  horizontal
+                  data={topRatedItems}
+                  renderItem={renderBook}
+                  keyExtractor={(item) => item.id}
+                  contentContainerStyle={styles.bookList}
+                  showsHorizontalScrollIndicator={false}
+                />
+              </View>
+            )}
           </>
         )}
       </ScrollView>
@@ -344,6 +448,18 @@ export const DashboardScreen: React.FC<Props> = ({ navigation }) => {
           setIsSheetVisible(false);
           navigation.navigate("BookDetails", { bookId: book.id });
         }}
+      />
+      <AiSearchBottomSheet
+        visible={showAiResults}
+        results={aiResults}
+        query={search}
+        onClose={() => setShowAiResults(false)}
+        onSelect={(book) => {
+          setShowAiResults(false);
+          openBookSheet(book);
+        }}
+        onSave={handleSaveBook}
+        savedIds={new Set(savedItems.map((item) => item.book.id))}
       />
     </SafeAreaView>
   );
@@ -378,22 +494,8 @@ const createStyles = (colors: any) =>
       resizeMode: "cover",
       marginBottom: spacing.md,
     },
-    searchContainer: {
-      flexDirection: "row",
-      alignItems: "center",
-      backgroundColor: SCRIBD_PAPER,
+    searchWrapper: {
       marginHorizontal: spacing.md,
-      paddingVertical: spacing.sm,
-      paddingHorizontal: spacing.md,
-      borderRadius: 999,
-      borderWidth: 1,
-      borderColor: colors.border,
-    },
-    searchInput: {
-      flex: 1,
-      marginLeft: spacing.sm,
-      ...typography.body,
-      color: colors.textPrimary,
     },
     subscribeCard: {
       marginHorizontal: spacing.lg,
@@ -554,15 +656,6 @@ const createStyles = (colors: any) =>
       alignItems: "center",
       justifyContent: "center",
       backgroundColor: "rgba(227, 18, 38, 0.08)",
-    },
-    aiToggle: {
-      padding: 8,
-      borderRadius: 12,
-      marginLeft: 8,
-      backgroundColor: "transparent",
-    },
-    aiToggleActive: {
-      backgroundColor: "rgba(227, 18, 38, 0.12)",
     },
     trendingCard: {
       backgroundColor: SCRIBD_PAPER,

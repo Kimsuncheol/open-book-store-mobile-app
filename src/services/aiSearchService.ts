@@ -64,7 +64,7 @@ Rules:
 
   try {
     const response = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${GEMINI_API_KEY}`,
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_API_KEY}`,
       {
         method: 'POST',
         headers: {
@@ -89,7 +89,9 @@ Rules:
     );
 
     if (!response.ok) {
-      throw new Error(`AI search failed: ${response.statusText}`);
+      const errorText = await response.text();
+      console.error('AI search API error:', response.status, errorText);
+      throw new Error(`AI search failed: ${response.status} - ${errorText || 'Unknown error'}`);
     }
 
     const data = await response.json();

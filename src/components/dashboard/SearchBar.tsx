@@ -43,7 +43,7 @@ export const SearchBar: React.FC<SearchBarProps> = ({
     >
       <Ionicons name="search" size={18} color={colors.textMuted} />
       <TextInput
-        style={[styles.searchInput, { color: colors.textPrimary }]}
+        style={[styles.searchInput, { color: "#111111" }]}
         placeholder={
           aiMode
             ? t("dashboard.searchBar.aiPlaceholder")

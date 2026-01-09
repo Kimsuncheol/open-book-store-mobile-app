@@ -27,28 +27,25 @@ import { downloadPDF } from "../../services/storageService";
 import { spacing } from "../../theme/colors";
 import type { SavedScreenProps } from "../../types/navigation";
 import { useLanguage } from "../../context/LanguageContext";
-import { removeSavedBooks } from "../../services/savedBooksService";
+import { SavedTabs } from "../../components/saved/SavedTabs";
+import { TitlesTab } from "../../components/saved/TitlesTab";
+import { ListsTab } from "../../components/saved/ListsTab";
+import { NotebookTab } from "../../components/saved/NotebookTab";
+import { HistoryTab } from "../../components/saved/HistoryTab";
 
 const SavedList = React.lazy(() => import("./SavedList"));
 
 export const SavedScreen: React.FC<SavedScreenProps> = ({ navigation }) => {
   const { colors } = useTheme();
   const { user } = useAuth();
-  const {
-    savedItems,
-    removeFromSaved,
-    removeMultipleFromSaved,
-    clearSaved,
-    loadSavedBooks,
-  } = useSaved();
+  const { savedItems, removeFromSaved, clearSaved, loadSavedBooks } =
+    useSaved();
   const [downloadingId, setDownloadingId] = React.useState<string | null>(null);
   const { t } = useLanguage();
   const [loadingSaved, setLoadingSaved] = React.useState(false);
-  const [selectionMode, setSelectionMode] = React.useState(false);
-  const [selectedIds, setSelectedIds] = React.useState<Set<string>>(
-    () => new Set()
-  );
-  const [deletingSelected, setDeletingSelected] = React.useState(false);
+  const [activeTab, setActiveTab] = React.useState<
+    "Titles" | "Lists" | "Notebook" | "History"
+  >("Titles");
 
   // Search State
   const [search, setSearch] = React.useState("");
@@ -58,7 +55,7 @@ export const SavedScreen: React.FC<SavedScreenProps> = ({ navigation }) => {
 
   const PRIMARY = "#8B4513";
   const skeletonItems = Array.from({ length: 3 }, (_, index) => index);
-  const selectedCount = selectedIds.size;
+  const tabs = ["Titles", "Lists", "Notebook", "History"] as const;
 
   // Update filtered items when savedItems change
   React.useEffect(() => {
@@ -78,18 +75,6 @@ export const SavedScreen: React.FC<SavedScreenProps> = ({ navigation }) => {
       setLoadingSaved(false);
     }
   }, [user, loadSavedBooks, clearSaved]);
-
-  React.useEffect(() => {
-    if (!selectionMode) return;
-    const savedIdSet = new Set(savedItems.map((item) => item.book.id));
-    setSelectedIds((prev) => {
-      const next = new Set<string>();
-      prev.forEach((id) => {
-        if (savedIdSet.has(id)) next.add(id);
-      });
-      return next;
-    });
-  }, [savedItems, selectionMode]);
 
   // Handle AI Search
   const handleAiSearch = async () => {
@@ -174,86 +159,8 @@ export const SavedScreen: React.FC<SavedScreenProps> = ({ navigation }) => {
     }
   };
 
-  const toggleSelectionMode = () => {
-    if (selectionMode) {
-      setSelectionMode(false);
-      setSelectedIds(new Set());
-      return;
-    }
-    setSelectionMode(true);
-  };
-
-  const toggleSelected = (bookId: string) => {
-    setSelectedIds((prev) => {
-      const next = new Set(prev);
-      if (next.has(bookId)) {
-        next.delete(bookId);
-      } else {
-        next.add(bookId);
-      }
-      return next;
-    });
-  };
-
-  const handleSelectAll = () => {
-    if (selectedCount === savedItems.length) {
-      setSelectedIds(new Set());
-      return;
-    }
-    setSelectedIds(new Set(savedItems.map((item) => item.book.id)));
-  };
-
-  const handleDeleteSelected = () => {
-    if (!user || selectedCount === 0 || deletingSelected) return;
-    Alert.alert(
-      "Delete Saved Books",
-      `Remove ${selectedCount} selected item${selectedCount > 1 ? "s" : ""}?`,
-      [
-        { text: "Cancel", style: "cancel" },
-        {
-          text: "Delete",
-          style: "destructive",
-          onPress: async () => {
-            setDeletingSelected(true);
-            try {
-              const ids = Array.from(selectedIds);
-              await removeSavedBooks(ids, user.uid);
-              removeMultipleFromSaved(ids);
-              setFilteredItems((prev) =>
-                prev.filter((item) => !ids.includes(item.book.id))
-              );
-              setSelectedIds(new Set());
-              setSelectionMode(false);
-            } catch (error) {
-              console.error("Failed to delete saved books:", error);
-              Alert.alert(
-                "Delete Failed",
-                "Could not delete selected books. Please try again."
-              );
-            } finally {
-              setDeletingSelected(false);
-            }
-          },
-        },
-      ]
-    );
-  };
-
   const renderSavedItem = ({ item }: { item: (typeof savedItems)[0] }) => (
     <View style={[styles.cartItem, { backgroundColor: colors.surface }]}>
-      {selectionMode && (
-        <TouchableOpacity
-          style={[
-            styles.checkbox,
-            selectedIds.has(item.book.id) && styles.checkboxSelected,
-          ]}
-          onPress={() => toggleSelected(item.book.id)}
-        >
-          {selectedIds.has(item.book.id) && (
-            <Ionicons name="checkmark" size={14} color="#FFFFFF" />
-          )}
-        </TouchableOpacity>
-      )}
       <View style={[styles.bookIcon, { backgroundColor: PRIMARY + "20" }]}>
         <Ionicons name="book-outline" size={32} color={PRIMARY} />
       </View>
@@ -276,7 +183,6 @@ export const SavedScreen: React.FC<SavedScreenProps> = ({ navigation }) => {
             onPress={() =>
               Alert.alert("Reader", "Reader screen is unavailable.")
             }
-            disabled={selectionMode}
           >
             <Ionicons name="book-outline" size={16} color="#FFFFFF" />
             <Text style={styles.actionBtnText}>Read Now</Text>
@@ -290,7 +196,7 @@ export const SavedScreen: React.FC<SavedScreenProps> = ({ navigation }) => {
                 downloadingId === item.book.id && styles.iconBtnDisabled,
               ]}
               onPress={() => handleDownload(item.book)}
-              disabled={downloadingId === item.book.id || selectionMode}
+              disabled={downloadingId === item.book.id}
             >
               <Ionicons name="download-outline" size={18} color={PRIMARY} />
             </TouchableOpacity>
@@ -301,7 +207,6 @@ export const SavedScreen: React.FC<SavedScreenProps> = ({ navigation }) => {
                 { backgroundColor: colors.surface, borderColor: colors.border },
               ]}
               onPress={() => removeFromSaved(item.book.id)}
-              disabled={selectionMode}
             >
               <Ionicons
                 name="bookmark"
@@ -315,12 +220,12 @@ export const SavedScreen: React.FC<SavedScreenProps> = ({ navigation }) => {
     </View>
   );
 
-  const styles = createStyles(colors, PRIMARY);
+  const styles = createStyles(colors);
 
   return (
     <SafeAreaView
       style={[styles.container, { backgroundColor: colors.background }]}
-      edges={["top", "bottom"]}
+      edges={["top"]}
     >
       {/* Auth Required State */}
       {!user ? (
@@ -358,186 +263,58 @@ export const SavedScreen: React.FC<SavedScreenProps> = ({ navigation }) => {
             <View style={{ width: 24 }} />
           </View>
 
-          {/* Search Bar */}
-          {savedItems.length > 0 && (
-            <>
-              <View style={styles.searchContainer}>
-                <Ionicons name="search" size={18} color={colors.textMuted} />
-                <TextInput
-                  style={[styles.searchInput, { color: colors.textPrimary }]}
-                  placeholder={
-                    aiMode
-                      ? "Ask AI to find items in your cart..."
-                      : "Search cart items..."
-                  }
-                  placeholderTextColor={colors.textMuted}
-                  value={search}
-                  onChangeText={(text) => {
-                    setSearch(text);
-                    if (!text.trim()) {
-                      setFilteredItems(savedItems);
-                    }
-                  }}
-                  onSubmitEditing={handleSearch}
-                  returnKeyType="search"
-                />
-                {aiSearching ? (
-                  <ActivityIndicator size="small" color={PRIMARY} />
-                ) : (
-                  <TouchableOpacity
-                    onPress={() => setAiMode(!aiMode)}
-                    style={[styles.aiToggle, aiMode && styles.aiToggleActive]}
-                    disabled={selectionMode}
-                  >
-                    <Ionicons
-                      name="sparkles"
-                      size={18}
-                      color={aiMode ? PRIMARY : colors.textMuted}
-                    />
-                  </TouchableOpacity>
-                )}
-              </View>
-              <View style={styles.searchActionsRow}>
-                <TouchableOpacity
-                  onPress={toggleSelectionMode}
-                  style={styles.trashBtn}
-                >
-                  <Ionicons
-                    name={selectionMode ? "close" : "trash-outline"}
-                    size={16}
-                    color={PRIMARY}
-                  />
-                </TouchableOpacity>
-                {selectionMode && (
-                  <>
-                    <TouchableOpacity
-                      onPress={handleSelectAll}
-                      style={styles.selectAllBtn}
-                    >
-                      <Ionicons
-                        name={
-                          selectedCount === savedItems.length
-                            ? "checkbox-outline"
-                            : "square-outline"
-                        }
-                        size={16}
-                        color={PRIMARY}
-                      />
-                    </TouchableOpacity>
-                    <TouchableOpacity
-                      onPress={handleDeleteSelected}
-                      style={[
-                        styles.deleteBtn,
-                        selectedCount === 0 && styles.deleteBtnDisabled,
-                      ]}
-                      disabled={selectedCount === 0 || deletingSelected}
-                    >
-                      <Ionicons name="trash" size={16} color="#FFFFFF" />
-                    </TouchableOpacity>
-                  </>
-                )}
-              </View>
-            </>
-          )}
-          {/* saved books */}
-          {loadingSaved ? (
-            <View style={styles.list}>
-              {skeletonItems.map((index) => (
-                <View
-                  key={`saved-skeleton-${index}`}
-                  style={[styles.cartItem, styles.skeletonCard]}
-                >
-                  <Shimmer style={styles.skeletonIcon} />
-                  <View style={styles.itemInfo}>
-                    <Shimmer style={styles.skeletonTitle} />
-                    <Shimmer style={styles.skeletonAuthor} />
-                    <View style={styles.skeletonActions}>
-                      <Shimmer style={styles.skeletonPrimary} />
-                      <View style={styles.skeletonSecondary}>
-                        <Shimmer style={styles.skeletonIconBtn} />
-                        <Shimmer style={styles.skeletonIconBtn} />
-                      </View>
-                    </View>
-                  </View>
-                </View>
-              ))}
-            </View>
-          ) : savedItems.length === 0 ? (
-            <View style={styles.emptyState}>
-              <Ionicons
-                name="cart-outline"
-                size={64}
-                color={colors.textMuted}
-              />
-              <Text style={[styles.emptyTitle, { color: colors.textPrimary }]}>
-                {t("saved.emptySaved")}
-              </Text>
-              <Text style={[styles.emptyText, { color: colors.textSecondary }]}>
-                {t("saved.emptySavedText")}
-              </Text>
-              <TouchableOpacity
-                style={[styles.browseBtn, { backgroundColor: PRIMARY }]}
-                onPress={() =>
-                  navigation.navigate("DashboardTab", {
-                    screen: "DashboardMain",
-                  })
-                }
-              >
-                <Text style={styles.browseBtnText}>{t("saved.browseBtn")}</Text>
-              </TouchableOpacity>
-            </View>
-          ) : filteredItems.length === 0 && search.trim() ? (
-            <View style={styles.emptyState}>
-              <Ionicons
-                name="search-outline"
-                size={64}
-                color={colors.textMuted}
-              />
-              <Text style={[styles.emptyTitle, { color: colors.textPrimary }]}>
-                No Results Found
-              </Text>
-              <Text style={[styles.emptyText, { color: colors.textSecondary }]}>
-                Try adjusting your search query
-              </Text>
-              <TouchableOpacity
-                style={[styles.browseBtn, { backgroundColor: PRIMARY }]}
-                onPress={() => {
-                  setSearch("");
+          {/* Tabs */}
+          <SavedTabs
+            tabs={tabs}
+            activeTab={activeTab}
+            onTabChange={(tab) => setActiveTab(tab as typeof activeTab)}
+          />
+
+          {activeTab === "Titles" && (
+            <TitlesTab
+              savedItems={savedItems}
+              filteredItems={filteredItems}
+              loadingSaved={loadingSaved}
+              search={search}
+              aiMode={aiMode}
+              aiSearching={aiSearching}
+              PRIMARY={PRIMARY}
+              skeletonItems={skeletonItems}
+              onSearchChange={(text) => {
+                setSearch(text);
+                if (!text.trim()) {
                   setFilteredItems(savedItems);
-                }}
-              >
-                <Text style={styles.browseBtnText}>Clear Search</Text>
-              </TouchableOpacity>
-            </View>
-          ) : (
-            <React.Suspense
-              fallback={
-                <View style={styles.listFallback}>
-                  <ActivityIndicator size="small" color={PRIMARY} />
-                </View>
+                }
+              }}
+              onSearchSubmit={handleSearch}
+              onAIModeToggle={() => setAiMode(!aiMode)}
+              onBrowsePress={() =>
+                navigation.navigate("DashboardTab", {
+                  screen: "DashboardMain",
+                })
               }
-            >
-              <SavedList
-                data={filteredItems}
-                renderItem={renderSavedItem}
-                keyExtractor={(item) => item.book.id}
-                contentContainerStyle={styles.list}
-                extraData={{
-                  selectionMode,
-                  selectedCount,
-                  selectedIds,
-                  downloadingId,
-                }}
-              />
-            </React.Suspense>
+              onClearSearch={() => {
+                setSearch("");
+                setFilteredItems(savedItems);
+              }}
+              renderSavedItem={renderSavedItem}
+              downloadingId={downloadingId}
+              t={t}
+            />
           )}
+
+          {activeTab === "Lists" && <ListsTab />}
+
+          {activeTab === "Notebook" && <NotebookTab />}
+
+          {activeTab === "History" && <HistoryTab />}
         </>
       )}
     </SafeAreaView>
   );
 };
 
-const createStyles = (colors: any, primary: string) =>
+const createStyles = (colors: any) =>
   StyleSheet.create({
     container: { flex: 1 },
     header: {
@@ -547,6 +324,30 @@ const createStyles = (colors: any, primary: string) =>
       padding: spacing.lg,
     },
     headerTitle: { fontSize: 20, fontWeight: "600" },
+    tabsRow: {
+      flexDirection: "row",
+      justifyContent: "space-between",
+      paddingHorizontal: spacing.lg,
+      borderBottomWidth: 1,
+      borderBottomColor: colors.border,
+      marginBottom: spacing.sm,
+    },
+    tabItem: {
+      paddingVertical: spacing.sm,
+      flex: 1,
+      alignItems: "center",
+    },
+    tabLabel: {
+      fontSize: 14,
+      fontWeight: "600",
+    },
+    tabUnderline: {
+      marginTop: spacing.xs,
+      height: 2,
+      width: 28,
+      backgroundColor: colors.textPrimary,
+      borderRadius: 999,
+    },
     list: { padding: spacing.lg, gap: spacing.md },
     listFallback: {
       padding: spacing.lg,
@@ -602,20 +403,6 @@ const createStyles = (colors: any, primary: string) =>
       padding: spacing.md,
       borderRadius: 12,
       alignItems: "center",
-    },
-    checkbox: {
-      width: 22,
-      height: 22,
-      borderRadius: 6,
-      borderWidth: 1,
-      borderColor: primary,
-      alignItems: "center",
-      justifyContent: "center",
-      marginRight: spacing.sm,
-      backgroundColor: "transparent",
-    },
-    checkboxSelected: {
-      backgroundColor: primary,
     },
     bookIcon: {
       width: 60,
@@ -700,52 +487,23 @@ const createStyles = (colors: any, primary: string) =>
       marginLeft: 8,
       backgroundColor: "transparent",
     },
-    searchActions: {
-      flexDirection: "row",
-      alignItems: "center",
-      gap: 6,
-      marginLeft: 8,
-    },
-    searchActionsRow: {
-      flexDirection: "row",
-      alignItems: "center",
-      gap: 6,
-      marginHorizontal: spacing.lg,
-      marginBottom: spacing.md,
-      justifyContent: "flex-end",
-    },
-    trashBtn: {
-      width: 28,
-      height: 28,
-      borderRadius: 10,
-      borderWidth: 1,
-      borderColor: colors.border,
-      alignItems: "center",
-      justifyContent: "center",
-      backgroundColor: colors.surface,
-    },
-    selectAllBtn: {
-      width: 28,
-      height: 28,
-      borderRadius: 10,
-      borderWidth: 1,
-      borderColor: colors.border,
-      alignItems: "center",
-      justifyContent: "center",
-      backgroundColor: colors.surface,
-    },
-    deleteBtn: {
-      paddingHorizontal: 10,
-      height: 28,
-      borderRadius: 10,
-      alignItems: "center",
-      justifyContent: "center",
-      backgroundColor: primary,
-    },
-    deleteBtnDisabled: {
-      opacity: 0.5,
-    },
     aiToggleActive: {
       backgroundColor: "rgba(139, 69, 19, 0.12)",
+    },
+    placeholder: {
+      flex: 1,
+      alignItems: "center",
+      justifyContent: "center",
+      paddingHorizontal: spacing.xl,
+      gap: spacing.sm,
+    },
+    placeholderTitle: {
+      fontSize: 18,
+      fontWeight: "600",
+      textAlign: "center",
+    },
+    placeholderText: {
+      fontSize: 14,
+      textAlign: "center",
     },
   });

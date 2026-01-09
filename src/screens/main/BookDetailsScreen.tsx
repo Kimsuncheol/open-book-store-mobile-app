@@ -24,6 +24,8 @@ import {
 import { downloadPDF } from "../../services/storageService";
 import { spacing, typography, borderRadius } from "../../theme/colors";
 import type { BookDetailsScreenProps as Props } from "../../types/navigation";
+import { AddToListModal } from "../../components/modals/AddToListModal";
+import { CreateListModal } from "../../components/modals/CreateListModal";
 
 const COVER_BG = "#F8F6F2";
 
@@ -36,6 +38,8 @@ export const BookDetailsScreen: React.FC<Props> = ({ navigation, route }) => {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [downloading, setDownloading] = useState(false);
+  const [showAddToListModal, setShowAddToListModal] = useState(false);
+  const [showCreateListModal, setShowCreateListModal] = useState(false);
 
   useEffect(() => {
     let isMounted = true;
@@ -117,6 +121,18 @@ export const BookDetailsScreen: React.FC<Props> = ({ navigation, route }) => {
     }
   };
 
+  const handleAddToList = () => {
+    if (!user) {
+      Alert.alert("Sign In Required", "Please sign in to add books to lists.");
+      return;
+    }
+    setShowAddToListModal(true);
+  };
+
+  const handleOpenCreateList = () => {
+    setShowCreateListModal(true);
+  };
+
   return (
     <View style={styles.container}>
       <View style={[styles.header, { paddingTop: insets.top + spacing.sm }]}>
@@ -171,7 +187,11 @@ export const BookDetailsScreen: React.FC<Props> = ({ navigation, route }) => {
             onPress={handleDownload}
             disabled={downloading}
           >
-            <Ionicons name="download-outline" size={20} color={colors.textPrimary} />
+            <Ionicons
+              name="download-outline"
+              size={20}
+              color={colors.textPrimary}
+            />
             <Text style={styles.actionText}>Download</Text>
           </TouchableOpacity>
           <TouchableOpacity
@@ -184,16 +204,41 @@ export const BookDetailsScreen: React.FC<Props> = ({ navigation, route }) => {
               size={20}
               color={colors.textPrimary}
             />
-            <Text style={styles.actionText}>
-              {isSaved ? "Saved" : "Save"}
-            </Text>
+            <Text style={styles.actionText}>{isSaved ? "Saved" : "Save"}</Text>
           </TouchableOpacity>
-          <TouchableOpacity style={styles.actionButton}>
-            <Ionicons name="list-outline" size={20} color={colors.textPrimary} />
+          <TouchableOpacity
+            style={styles.actionButton}
+            onPress={handleAddToList}
+          >
+            <Ionicons
+              name="list-outline"
+              size={20}
+              color={colors.textPrimary}
+            />
             <Text style={styles.actionText}>Add to List</Text>
           </TouchableOpacity>
         </View>
       </ScrollView>
+
+      {user && book && (
+        <>
+          <AddToListModal
+            visible={showAddToListModal}
+            onClose={() => setShowAddToListModal(false)}
+            bookId={book.id}
+            userId={user.uid}
+            onCreateNewList={handleOpenCreateList}
+          />
+          <CreateListModal
+            visible={showCreateListModal}
+            onClose={() => setShowCreateListModal(false)}
+            onListCreated={() => {
+              // Optionally reload lists or show success
+            }}
+            userId={user.uid}
+          />
+        </>
+      )}
     </View>
   );
 };

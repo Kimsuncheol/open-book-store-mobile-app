@@ -74,7 +74,7 @@ export const DownloadsScreen: React.FC<Props> = ({ navigation }) => {
   const styles = createStyles(colors);
 
   return (
-    <SafeAreaView style={styles.container} edges={["top", "bottom"]}>
+    <SafeAreaView style={styles.container} edges={["top"]}>
       {/* Auth Required State */}
       {!user ? (
         <>
@@ -155,7 +155,11 @@ export const DownloadsScreen: React.FC<Props> = ({ navigation }) => {
                   <View style={styles.bookRow}>
                     <View style={styles.coverWrapper}>
                       <View style={styles.bookCover}>
-                        <Ionicons name="book-outline" size={40} color="#111111" />
+                        <Ionicons
+                          name="book-outline"
+                          size={40}
+                          color="#111111"
+                        />
                       </View>
                       <View style={styles.formatBadge}>
                         <Text style={styles.formatText}>PDF</Text>

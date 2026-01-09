@@ -9,6 +9,11 @@
     "newArchEnabled": true,
     "splash": {
       "image": "./assets/scribd_logo.png",
+      "dark": {
+        "image": "./assets/scribd_logo_darkmode.png",
+        "resizeMode": "cover",
+        "backgroundColor": "#000000"
+      },
       "resizeMode": "cover",
       "backgroundColor": "#ffffff"
     },

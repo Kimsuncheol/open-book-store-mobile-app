@@ -30,7 +30,7 @@ export const SettingsScreen: React.FC<Props> = ({ navigation }) => {
   const styles = createStyles(colors);
 
   return (
-    <SafeAreaView style={styles.container} edges={["top", "bottom"]}>
+    <SafeAreaView style={styles.container} edges={["top"]}>
       <ScrollView>
         <View style={styles.header}>
           <TouchableOpacity onPress={() => navigation.goBack()}>

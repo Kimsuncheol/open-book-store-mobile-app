@@ -8,6 +8,7 @@ import {
   TextInput,
   KeyboardAvoidingView,
   Platform,
+  useWindowDimensions,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
@@ -18,6 +19,8 @@ import { askQuestion } from "../../services/aiService";
 import {
   addAIChatMessage,
   getAIChatMessages,
+  getBook,
+  BookAnalysis,
 } from "../../services/firestoreService";
 import { Shimmer } from "../../components/Shimmer";
 import { spacing, typography, borderRadius } from "../../theme/colors";
@@ -46,6 +49,9 @@ export const AIAskScreen: React.FC<Props> = ({ navigation, route }) => {
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const [historyLoading, setHistoryLoading] = useState(true);
+  const [bookAnalysis, setBookAnalysis] = useState<BookAnalysis | undefined>(
+    undefined
+  );
   const listRef = useRef<FlatList>(null);
 
   const styles = createStyles(colors);
@@ -77,6 +83,22 @@ export const AIAskScreen: React.FC<Props> = ({ navigation, route }) => {
     };
   }, [bookId, userId]);
 
+  // Fetch book analysis for context
+  useEffect(() => {
+    if (bookId === "general") return;
+    const fetchBookAnalysis = async () => {
+      try {
+        const book = await getBook(bookId);
+        if (book?.analyze) {
+          setBookAnalysis(book.analyze);
+        }
+      } catch (error) {
+        console.error("Error fetching book analysis:", error);
+      }
+    };
+    fetchBookAnalysis();
+  }, [bookId]);
+
   const handleSend = async () => {
     if (!input.trim() || loading) return;
 
@@ -98,7 +120,8 @@ export const AIAskScreen: React.FC<Props> = ({ navigation, route }) => {
         userMsg.content,
         title === "Open Bookstore"
           ? "General Assistant"
-          : `Content from ${title}`
+          : `Content from ${title}`,
+        bookAnalysis
       );
       const aiMsg: Message = {
         id: (Date.now() + 1).toString(),
@@ -120,13 +143,13 @@ export const AIAskScreen: React.FC<Props> = ({ navigation, route }) => {
     setLoading(false);
   };
 
-  // Return the main view with safe area insets
+  // Return the main view - don't include bottom edge since tab navigator handles it
   return (
-    <SafeAreaView style={styles.container} edges={["top", "bottom"]}>
+    <SafeAreaView style={styles.container} edges={["top"]}>
       <KeyboardAvoidingView
         style={styles.content}
         behavior={Platform.OS === "ios" ? "padding" : "height"}
-        keyboardVerticalOffset={0}
+        keyboardVerticalOffset={Platform.OS === "ios" ? 90 : 30}
       >
         <View style={styles.header}>
           <TouchableOpacity onPress={() => navigation.goBack()}>
@@ -189,7 +212,11 @@ export const AIAskScreen: React.FC<Props> = ({ navigation, route }) => {
               >
                 {item.role === "assistant" && (
                   <View style={styles.avatar}>
-                    <Ionicons name="sparkles" size={16} color={colors.primary} />
+                    <Ionicons
+                      name="sparkles"
+                      size={16}
+                      color={colors.primary}
+                    />
                   </View>
                 )}
                 <View
@@ -212,7 +239,21 @@ export const AIAskScreen: React.FC<Props> = ({ navigation, route }) => {
           }}
         />
 
-        {loading && <Text style={styles.typingText}>{t("aiAsk.typing")}</Text>}
+        {/* Typing indicator */}
+        {loading && (
+          <View style={[styles.msgRow, styles.typingRow]}>
+            <View style={styles.avatar}>
+              <Ionicons name="sparkles" size={16} color={colors.primary} />
+            </View>
+            <Shimmer
+              style={[
+                styles.skeletonBubble,
+                styles.skeletonBubbleAi,
+                styles.typingBubble,
+              ]}
+            />
+          </View>
+        )}
 
         <View style={styles.inputBar}>
           <TextInput
@@ -297,19 +338,22 @@ const createStyles = (colors: any) =>
     skeletonBubbleAi: {
       width: "75%",
     },
-    typingText: {
-      ...typography.caption,
-      color: colors.textMuted,
-      paddingHorizontal: spacing.lg,
+    typingRow: {
+      paddingHorizontal: spacing.md,
+      marginBottom: spacing.sm,
+    },
+    typingBubble: {
+      height: 32,
     },
     inputBar: {
       flexDirection: "row",
       alignItems: "center",
       paddingHorizontal: spacing.md,
       paddingTop: spacing.md,
-      paddingBottom: spacing.xs,
+      paddingBottom: spacing.md,
       borderTopWidth: 1,
       borderTopColor: colors.border,
+      backgroundColor: colors.background,
     },
     input: {
       flex: 1,

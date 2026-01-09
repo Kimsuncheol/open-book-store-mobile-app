@@ -1,5 +1,11 @@
 import React from "react";
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from "react-native";
+import {
+  View,
+  Text,
+  StyleSheet,
+  ScrollView,
+  TouchableOpacity,
+} from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { useTheme } from "../../context/ThemeContext";
@@ -70,12 +76,14 @@ const mockTrending: Book[] = [
   },
 ];
 
-export const TrendingScreen: React.FC<TrendingScreenProps> = ({ navigation }) => {
+export const TrendingScreen: React.FC<TrendingScreenProps> = ({
+  navigation,
+}) => {
   const { colors } = useTheme();
   const styles = createStyles(colors);
 
   return (
-    <SafeAreaView style={styles.container} edges={["top", "bottom"]}>
+    <SafeAreaView style={styles.container} edges={["top"]}>
       <View style={styles.backgroundAccent} />
       <View style={styles.header}>
         <TouchableOpacity onPress={() => navigation.goBack()}>

@@ -11,6 +11,7 @@ export default {
     loading: "Loading...",
     error: "Error",
     success: "Success",
+    create: "Create",
   },
   navigation: {
     home: "Home",
@@ -45,6 +46,23 @@ export default {
     featuredForYou: "Featured for you",
     trendingNow: "Trending Now",
     more: "More",
+    newReleases: "New Releases",
+    moreForYou: "More to Explore",
+    topRated: "Top Rated",
+    feed: {
+      title: "Feed",
+      badges: {
+        new: "New",
+        popular: "Popular",
+        recommended: "Picked",
+      },
+    },
+    aiResults: {
+      title: "AI Search",
+      subtitle: "Top matches for your query",
+      empty: "No matches yet",
+      emptyHint: "Try a different prompt or broader keywords.",
+    },
     searchBar: {
       placeholder: "Search books...",
       aiPlaceholder: "Ask AI about books...",
@@ -202,5 +220,22 @@ export default {
     signInBtnText: "Sign In",
     haveAccount: "Already have an account?",
     signUpBtn: "Sign Up",
+  },
+  lists: {
+    createAList: "Create a List",
+    createNewList: "Create New List",
+    addToList: "Add to List",
+    listName: "List Name",
+    listNamePlaceholder: "Enter list name",
+    itemCount: "{{count}} items",
+    selectList: "Select a List",
+    emptyListName: "List name cannot be empty",
+    listNameTooLong: "List name must be 50 characters or less",
+    createListError: "Failed to create list. Please try again.",
+    loadListsError: "Failed to load lists. Please try again.",
+    addToListError: "Failed to add book to list. Please try again.",
+    bookAddedToList: "Book added to list successfully",
+    emptyLists: "Create your first list",
+    emptyListsText: "Organize saved books into themed lists you can return to later.",
   }
 };

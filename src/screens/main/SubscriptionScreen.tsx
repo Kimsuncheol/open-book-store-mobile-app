@@ -93,7 +93,7 @@ export const SubscriptionScreen: React.FC<SubscriptionScreenProps> = ({
   };
 
   return (
-    <SafeAreaView style={styles.container} edges={["top", "bottom"]}>
+    <SafeAreaView style={styles.container} edges={["top"]}>
       <View style={styles.backgroundAccent} />
       <View style={styles.header}>
         <TouchableOpacity

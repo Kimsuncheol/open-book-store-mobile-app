@@ -220,7 +220,6 @@ export const BottomTabNavigator: React.FC = () => {
         tabBarStyle: {
           backgroundColor: colors.background,
           borderTopColor: colors.border,
-          borderTopWidth: 1,
           height: 60 + insets.bottom,
           paddingBottom: insets.bottom,
           paddingTop: 8,
@@ -258,21 +257,17 @@ export const BottomTabNavigator: React.FC = () => {
         options={{
           tabBarLabel: t("navigation.aiAsk"),
           tabBarIcon: ({ color, size }) => (
-            <Ionicons
-              name="chatbubbles-outline"
-              size={size}
-              color={color}
-            />
+            <Ionicons name="chatbubbles-outline" size={size} color={color} />
           ),
         }}
       />
       <Tab.Screen
-        name="CartTab"
+        name="SaveTab"
         component={SavedStackNavigator}
         options={{
           tabBarLabel: t("navigation.saved"),
           tabBarIcon: ({ color, size }) => (
-            <Ionicons name="bookmark" size={size} color={color} />
+            <Ionicons name="bookmarks-outline" size={size} color={color} />
           ),
         }}
       />

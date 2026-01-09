@@ -12,6 +12,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { Button } from "../../components/Button";
 import { useTheme } from "../../context/ThemeContext";
 import { generateSummary } from "../../services/aiService";
+import { getBook } from "../../services/firestoreService";
 import { spacing, typography, borderRadius } from "../../theme/colors";
 import type { AISummaryScreenProps } from "../../types/navigation";
 
@@ -30,6 +31,15 @@ export const AISummaryScreen: React.FC<Props> = ({ navigation, route }) => {
     setLoading(true);
     setError(null);
     try {
+      // First try to get pre-computed analysis from Firestore
+      const book = await getBook(bookId);
+      if (book?.analyze?.status === "completed" && book.analyze.summary) {
+        setSummary(book.analyze.summary);
+        setLoading(false);
+        return;
+      }
+
+      // Fall back to real-time generation
       const mockContent = `This is content from ${title}...`;
       const result = await generateSummary(bookId, mockContent);
       setSummary(result);

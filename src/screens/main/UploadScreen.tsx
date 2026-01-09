@@ -9,6 +9,7 @@ import { useTheme } from "../../context/ThemeContext";
 import { useAuth } from "../../context/AuthContext";
 import { uploadPDF } from "../../services/storageService";
 import { addBook } from "../../services/firestoreService";
+import { analyzePDFBook } from "../../services/aiPdfAnalysisService";
 import { spacing, typography, borderRadius } from "../../theme/colors";
 import type { UploadScreenProps } from "../../types/navigation";
 import { useTranslation } from "react-i18next";
@@ -105,13 +106,19 @@ export const UploadScreen: React.FC<Props> = ({ navigation }) => {
 
       console.log("Adding book to Firestore:", bookData);
 
-      await addBook(bookData);
+      const bookId = await addBook(bookData);
 
-      console.log("Book added successfully");
+      console.log("Book added successfully with ID:", bookId);
 
-      Alert.alert("Success", "Book uploaded!", [
-        { text: "OK", onPress: () => navigation.goBack() },
-      ]);
+      // Trigger background PDF analysis (fire and forget)
+      analyzePDFBook(bookId, file.uri, title);
+      console.log("Background PDF analysis started");
+
+      Alert.alert(
+        "Success",
+        "Book uploaded! AI analysis is running in the background.",
+        [{ text: "OK", onPress: () => navigation.goBack() }]
+      );
     } catch (error) {
       console.error("Upload error:", error);
       Alert.alert(

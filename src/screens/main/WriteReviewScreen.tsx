@@ -91,7 +91,7 @@ export const WriteReviewScreen: React.FC<WriteReviewScreenProps> = ({
   return (
     <SafeAreaView
       style={[styles.container, { backgroundColor: colors.background }]}
-      edges={["top", "bottom"]}
+      edges={["top"]}
     >
       {/* Auth Required State */}
       {!user ? (

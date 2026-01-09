@@ -163,7 +163,7 @@ function CheckoutPage({
   };
 
   return (
-    <SafeAreaView style={styles.container} edges={["top", "bottom"]}>
+    <SafeAreaView style={styles.container} edges={["top"]}>
       <View style={styles.backgroundAccent} />
       <View style={styles.header}>
         <TouchableOpacity

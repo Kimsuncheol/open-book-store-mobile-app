@@ -1,7 +1,9 @@
 // AI Service using Gemini API
 // You can use Firebase AI or direct Gemini API
 
-const GEMINI_API_KEY = ''; // Add your Gemini API key here
+// import GEMINI_API_KEY from ".env";
+import { GEMINI_API_KEY } from "@env";
+import { BookAnalysis } from "./booksService";
 
 interface Message {
   role: 'user' | 'assistant';
@@ -30,11 +32,24 @@ export const generateSummary = async (bookId: string, content: string): Promise<
 export const askQuestion = async (
   bookId: string,
   question: string,
-  bookContent: string
+  bookContent: string,
+  bookAnalysis?: BookAnalysis
 ): Promise<string> => {
   const history = conversationCache.get(bookId) || [];
   
-  const contextPrompt = `Book content:\n${bookContent.substring(0, 4000)}\n\nPrevious conversation:\n${history.slice(-4).map(m => `${m.role}: ${m.content}`).join('\n')}\n\nQuestion: ${question}`;
+  // Build context with analysis if available
+  let analysisContext = '';
+  if (bookAnalysis && bookAnalysis.status === 'completed') {
+    analysisContext = `
+
+Book Analysis:
+- Summary: ${bookAnalysis.summary}
+- Topics: ${bookAnalysis.topics.join(', ')}
+- Themes: ${bookAnalysis.themes.join(', ')}
+- Key Points: ${bookAnalysis.keyPoints.join('; ')}`;
+  }
+  
+  const contextPrompt = `Book content:\n${bookContent.substring(0, 4000)}${analysisContext}\n\nPrevious conversation:\n${history.slice(-4).map(m => `${m.role}: ${m.content}`).join('\n')}\n\nQuestion: ${question}`;
   
   const result = await callGemini(contextPrompt);
   
@@ -52,7 +67,7 @@ const callGemini = async (prompt: string): Promise<string> => {
   }
 
   const response = await fetch(
-    `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${GEMINI_API_KEY}`,
+    `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_API_KEY}`,
     {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
