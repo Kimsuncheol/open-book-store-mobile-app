@@ -10,6 +10,8 @@ import {
   where,
   orderBy,
   limit,
+  addDoc,
+  increment,
   DocumentData,
 } from 'firebase/firestore';
 import { db } from '../config/firebase';
@@ -40,6 +42,16 @@ export interface Purchase {
   purchasedAt: Date;
 }
 
+// AI chat message
+export interface AIChatMessage {
+  id: string;
+  userId: string;
+  bookId: string;
+  role: 'user' | 'assistant';
+  content: string;
+  createdAt: Date;
+}
+
 // Get all books
 export const getBooks = async (categoryFilter?: string): Promise<Book[]> => {
   let q = query(collection(db, 'books'), orderBy('createdAt', 'desc'), limit(50));
@@ -60,7 +72,12 @@ export const getBook = async (bookId: string): Promise<Book | null> => {
 // Add book (for uploads)
 export const addBook = async (book: Omit<Book, 'id'>): Promise<string> => {
   const docRef = doc(collection(db, 'books'));
-  await setDoc(docRef, { ...book, createdAt: new Date() });
+  // Ensure createdAt is a Firestore Timestamp if it's a Date
+  const bookData = {
+    ...book,
+    createdAt: book.createdAt || new Date(),
+  };
+  await setDoc(docRef, bookData);
   return docRef.id;
 };
 
@@ -71,29 +88,133 @@ export const getFeaturedBooks = async (): Promise<Book[]> => {
   return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Book));
 };
 
-// Get user purchases
-export const getUserPurchases = async (userId: string): Promise<Purchase[]> => {
-  const q = query(collection(db, 'purchases'), where('userId', '==', userId));
-  const snapshot = await getDocs(q);
-  return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Purchase));
+export const getBookCount = async (): Promise<number> => {
+  const snapshot = await getDocs(collection(db, 'books'));
+  return snapshot.size;
 };
 
-// Add purchase
-export const addPurchase = async (purchase: Omit<Purchase, 'id'>): Promise<string> => {
-  const docRef = doc(collection(db, 'purchases'));
-  await setDoc(docRef, { ...purchase, purchasedAt: new Date() });
+export const getTotalDownloads = async (): Promise<number> => {
+  const snapshot = await getDocs(collection(db, 'books'));
+  return snapshot.docs.reduce((sum, doc) => sum + (doc.data().downloads || 0), 0);
+};
+
+export const getUserUploadCount = async (userId: string): Promise<number> => {
+  const q = query(collection(db, 'books'), where('uploadedBy', '==', userId));
+  const snapshot = await getDocs(q);
+  return snapshot.size;
+};
+
+export const incrementUserDownloads = async (userId: string, amount = 1): Promise<void> => {
+  const docRef = doc(db, 'users', userId);
+  const snapshot = await getDoc(docRef);
+  if (!snapshot.exists()) {
+    await setDoc(docRef, { downloads: 0 }, { merge: true });
+  }
+  await updateDoc(docRef, { downloads: increment(amount) });
+};
+
+export const decrementUserDownloads = async (userId: string): Promise<void> => {
+  const docRef = doc(db, 'users', userId);
+  const snapshot = await getDoc(docRef);
+  if (!snapshot.exists()) {
+    await setDoc(docRef, { downloads: 0 }, { merge: true });
+  }
+  await updateDoc(docRef, { downloads: increment(-1) });
+};
+
+export const addUserDownload = async (userId: string, bookId: string): Promise<void> => {
+  const docRef = doc(db, 'downloads', userId, 'downloads', bookId);
+  await setDoc(docRef, { bookId, downloadedAt: new Date() }, { merge: true });
+};
+
+export const getUserDownloadCount = async (userId: string): Promise<number> => {
+  const docRef = doc(db, 'users', userId);
+  const snapshot = await getDoc(docRef);
+  if (!snapshot.exists()) return 0;
+  const data = snapshot.data() as DocumentData;
+  return typeof data.downloads === 'number' ? data.downloads : 0;
+};
+
+export const removeUserDownload = async (userId: string, bookId: string): Promise<void> => {
+  const docRef = doc(db, 'downloads', userId, 'downloads', bookId);
+  await deleteDoc(docRef);
+};
+
+// Add Saved Book
+export const addSavedBook = async (bookId: string, userId: string): Promise<void> => {
+  const docRef = doc(db, 'savedBooks', userId, 'savedBooks', bookId);
+  await setDoc(docRef, { bookId });
+};
+
+// Get saved books
+export const getSavedBooks = async (userId: string): Promise<string[]> => {
+  const q = query(collection(db, 'savedBooks', userId, 'savedBooks'));
+  const snapshot = await getDocs(q);
+  return snapshot.docs.map(doc => doc.data().bookId as string);
+};
+
+export const getSavedBookDetails = async (userId: string): Promise<Book[]> => {
+  const bookIds = await getSavedBooks(userId);
+  const bookDocs = await Promise.all(bookIds.map((id) => getBook(id)));
+  return bookDocs.filter((book): book is Book => !!book);
+};
+
+// Remove saved book
+export const removeSavedBook = async (bookId: string, userId: string): Promise<void> => {
+  const docRef = doc(db, 'savedBooks', userId, 'savedBooks', bookId);
+  await deleteDoc(docRef);
+};
+
+// Check if book is saved
+export const isBookSaved = async (bookId: string, userId: string): Promise<boolean> => {
+  const docRef = doc(db, 'savedBooks', userId, 'savedBooks', bookId);
+  const snapshot = await getDoc(docRef);
+  return snapshot.exists();
+};
+
+// AI chat helpers
+const getChatDocId = (userId: string, bookId: string) => `${userId}_${bookId}`;
+
+export const getAIChatMessages = async (
+  userId: string,
+  bookId: string
+): Promise<AIChatMessage[]> => {
+  const chatId = getChatDocId(userId, bookId);
+  const q = query(collection(db, 'aiChats', chatId, 'messages'), orderBy('createdAt', 'asc'));
+  const snapshot = await getDocs(q);
+  return snapshot.docs.map((doc) => {
+    const data = doc.data() as DocumentData;
+    return {
+      id: doc.id,
+      userId: data.userId,
+      bookId: data.bookId,
+      role: data.role,
+      content: data.content,
+      createdAt: data.createdAt?.toDate ? data.createdAt.toDate() : data.createdAt,
+    } as AIChatMessage;
+  });
+};
+
+export const addAIChatMessage = async (
+  userId: string,
+  bookId: string,
+  role: 'user' | 'assistant',
+  content: string
+): Promise<string> => {
+  const chatId = getChatDocId(userId, bookId);
+  const docRef = await addDoc(collection(db, 'aiChats', chatId, 'messages'), {
+    userId,
+    bookId,
+    role,
+    content,
+    createdAt: new Date(),
+  });
   return docRef.id;
 };
 
-// Check if user purchased book
-export const hasPurchased = async (userId: string, bookId: string): Promise<boolean> => {
-  const q = query(collection(db, 'purchases'), where('userId', '==', userId), where('bookId', '==', bookId));
+export const clearAIChatMessages = async (userId: string, bookId: string): Promise<void> => {
+  const chatId = getChatDocId(userId, bookId);
+  const q = query(collection(db, 'aiChats', chatId, 'messages'));
   const snapshot = await getDocs(q);
-  return !snapshot.empty;
-};
-
-// Get categories
-export const getCategories = async (): Promise<string[]> => {
-  const snapshot = await getDocs(collection(db, 'categories'));
-  return snapshot.docs.map(doc => doc.data().name as string);
+  await Promise.all(snapshot.docs.map((docSnap) => deleteDoc(doc(db, 'aiChats', chatId, 'messages', docSnap.id))));
 };

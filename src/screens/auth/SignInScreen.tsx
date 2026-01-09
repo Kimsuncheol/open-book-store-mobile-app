@@ -23,6 +23,7 @@ import {
 } from "../../services/authService";
 import { spacing } from "../../theme/colors";
 import type { SignInScreenProps } from "../../types/navigation";
+import { useTranslation } from "react-i18next";
 
 const REMEMBER_EMAIL_KEY = "@openBookStore:rememberedEmail";
 
@@ -39,6 +40,7 @@ export const SignInScreen: React.FC<SignInScreenProps> = ({ navigation }) => {
   );
 
   const { request, response, promptAsync } = useGoogleAuth();
+  const { t } = useTranslation();
 
   // Load remembered email on mount
   useEffect(() => {
@@ -132,7 +134,7 @@ export const SignInScreen: React.FC<SignInScreenProps> = ({ navigation }) => {
         {/* Form Section */}
         <View style={styles.form}>
           <Input
-            placeholder="Email"
+            placeholder={t("signIn.email")}
             value={email}
             onChangeText={setEmail}
             keyboardType="email-address"
@@ -140,7 +142,7 @@ export const SignInScreen: React.FC<SignInScreenProps> = ({ navigation }) => {
             error={errors.email}
           />
           <Input
-            placeholder="Password"
+            placeholder={t("signIn.password")}
             value={password}
             onChangeText={setPassword}
             secureTextEntry
@@ -167,7 +169,7 @@ export const SignInScreen: React.FC<SignInScreenProps> = ({ navigation }) => {
               <Text
                 style={[styles.rememberText, { color: colors.textSecondary }]}
               >
-                Remember me
+                {t("signIn.rememberMe")}
               </Text>
             </TouchableOpacity>
 
@@ -175,13 +177,13 @@ export const SignInScreen: React.FC<SignInScreenProps> = ({ navigation }) => {
               onPress={() => navigation.navigate("ResetPassword")}
             >
               <Text style={[styles.forgotText, { color: PRIMARY }]}>
-                Forgot Password?
+                {t("signIn.forgetPassword")}
               </Text>
             </TouchableOpacity>
           </View>
 
           <Button
-            title="Sign In"
+            title={t("signIn.signInBtn")}
             onPress={handleSignIn}
             loading={loading}
             style={{ marginTop: spacing.md }}
@@ -200,7 +202,7 @@ export const SignInScreen: React.FC<SignInScreenProps> = ({ navigation }) => {
               <>
                 <Ionicons name="logo-google" size={20} color={PRIMARY} />
                 <Text style={[styles.googleText, { color: PRIMARY }]}>
-                  Continue with Google
+                  {t("signIn.signInWithGoogle")}
                 </Text>
               </>
             )}
@@ -210,10 +212,12 @@ export const SignInScreen: React.FC<SignInScreenProps> = ({ navigation }) => {
         {/* Footer */}
         <View style={styles.footer}>
           <Text style={[styles.footerText, { color: colors.textSecondary }]}>
-            Don't have an account?{" "}
+            {t("signIn.dontHaveAccount")}{" "}
           </Text>
           <TouchableOpacity onPress={() => navigation.navigate("SignUp")}>
-            <Text style={[styles.footerLink, { color: PRIMARY }]}>Sign Up</Text>
+            <Text style={[styles.footerLink, { color: PRIMARY }]}>
+              {t("signIn.signUp")}
+            </Text>
           </TouchableOpacity>
         </View>
       </ScrollView>

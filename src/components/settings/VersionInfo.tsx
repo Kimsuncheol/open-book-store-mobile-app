@@ -3,14 +3,16 @@ import { View, Text, StyleSheet } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useTheme } from "../../context/ThemeContext";
 import { spacing, typography, borderRadius } from "../../theme/colors";
+import { useTranslation } from "react-i18next";
 
 export const VersionInfo: React.FC = () => {
   const { colors } = useTheme();
+  const { t } = useTranslation();
 
   return (
     <View style={styles.container}>
       <Text style={[styles.sectionTitle, { color: colors.textMuted }]}>
-        About
+        {t("settings.about")}
       </Text>
       <View style={[styles.settingRow, { backgroundColor: colors.surface }]}>
         <View style={styles.settingInfo}>
@@ -20,7 +22,7 @@ export const VersionInfo: React.FC = () => {
             color={colors.primary}
           />
           <Text style={[styles.settingLabel, { color: colors.textPrimary }]}>
-            Version
+            {t("settings.version")}
           </Text>
         </View>
         <Text style={[styles.versionText, { color: colors.textMuted }]}>

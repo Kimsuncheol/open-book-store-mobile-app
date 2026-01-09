@@ -15,7 +15,13 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { useTheme } from "../../context/ThemeContext";
 import { useAuth } from "../../context/AuthContext";
-import { Book, getBooks } from "../../services/firestoreService";
+import { useSaved } from "../../context/SavedContext";
+import {
+  addSavedBook,
+  Book,
+  getBooks,
+  removeSavedBook,
+} from "../../services/firestoreService";
 import {
   searchBooksWithAI,
   simpleBookSearch,
@@ -23,6 +29,9 @@ import {
 } from "../../services/aiSearchService";
 import { spacing, typography } from "../../theme/colors";
 import type { DashboardScreenProps } from "../../types/navigation";
+import { useTranslation } from "react-i18next";
+import { BookDetailsBottomSheet } from "./BookDetailsBottomSheet";
+import { Shimmer } from "../../components/Shimmer";
 
 type Props = DashboardScreenProps;
 
@@ -35,15 +44,20 @@ const SCRIBD_PAPER = "#F8F6F2";
 export const DashboardScreen: React.FC<Props> = ({ navigation }) => {
   const { colors, isDark } = useTheme();
   const { isSubscribed, user } = useAuth();
+  const { addToSaved, removeFromSaved, savedItems } = useSaved();
   const [search, setSearch] = useState("");
   const [books, setBooks] = useState<Book[]>([]);
   const [loading, setLoading] = useState(true);
+  const { t } = useTranslation();
 
   // AI Search State
   const [aiMode, setAiMode] = useState(false);
   const [aiSearching, setAiSearching] = useState(false);
   const [aiResults, setAiResults] = useState<AISearchResult[]>([]);
   const [showAiResults, setShowAiResults] = useState(false);
+  const [selectedBook, setSelectedBook] = useState<Book | null>(null);
+  const [isSheetVisible, setIsSheetVisible] = useState(false);
+  const [savingId, setSavingId] = useState<string | null>(null);
 
   const styles = createStyles(colors);
 
@@ -101,67 +115,65 @@ export const DashboardScreen: React.FC<Props> = ({ navigation }) => {
     }
   };
 
-  const renderBook = ({ item }: { item: Book }) => (
-    <TouchableOpacity
-      style={styles.bookCard}
-      onPress={() => navigation.navigate("BookDetails", { bookId: item.id })}
-    >
-      <View style={styles.bookCover}>
-        <View style={styles.bookCoverAccent} />
-        <Ionicons name="book-outline" size={40} color={SCRIBD_INK} />
-      </View>
-      <Text style={styles.bookTitle} numberOfLines={2}>
-        {item.title}
-      </Text>
-      <Text style={styles.bookAuthor} numberOfLines={1}>
-        {item.author}
-      </Text>
-      <View style={styles.bookMeta}>
-        <Ionicons name="star" size={12} color={SCRIBD_ACCENT} />
-        <Text style={styles.rating}>{item.rating}</Text>
-      </View>
-    </TouchableOpacity>
-  );
+  const openBookSheet = (book: Book) => {
+    setSelectedBook(book);
+    setIsSheetVisible(true);
+  };
 
-  const TrendingNowView: React.FC<{
-    books: Book[];
-    onPress: (bookId: string) => void;
-  }> = ({ books: trendingBooks, onPress }) => {
-    const top = trendingBooks.slice(0, 3);
+  const handleSaveBook = async (book: Book) => {
+    if (savingId === book.id) return;
+    setSavingId(book.id);
+    try {
+      const isSaved = savedItems.some((saved) => saved.book.id === book.id);
+      if (isSaved) {
+        removeFromSaved(book.id);
+        if (user) {
+          await removeSavedBook(book.id, user.uid);
+        }
+      } else {
+        addToSaved(book);
+        if (user) {
+          await addSavedBook(book.id, user.uid);
+        }
+      }
+    } finally {
+      setSavingId(null);
+    }
+  };
+
+  const renderBook = ({ item }: { item: Book }) => {
+    const isSaved = savedItems.some((saved) => saved.book.id === item.id);
 
     return (
-      <View style={styles.trendingCard}>
-        {top.map((book, index) => (
+      <TouchableOpacity style={styles.bookCard} onPress={() => openBookSheet(item)}>
+        <View style={styles.bookCover}>
+          <View style={styles.bookCoverAccent} />
+          <Ionicons name="book-outline" size={40} color={SCRIBD_INK} />
+        </View>
+        <Text style={styles.bookTitle} numberOfLines={2}>
+          {item.title}
+        </Text>
+        <Text style={styles.bookAuthor} numberOfLines={1}>
+          {item.author}
+        </Text>
+        <View style={styles.bookMeta}>
+          <Ionicons name="star" size={12} color={SCRIBD_ACCENT} />
+          <Text style={styles.rating}>{item.rating}</Text>
           <TouchableOpacity
-            key={book.id}
             style={[
-              styles.trendingRow,
-              index < top.length - 1 && styles.trendingRowDivider,
+              styles.saveButton,
+              isSaved && { backgroundColor: "rgba(227, 18, 38, 0.12)" },
             ]}
-            onPress={() => onPress(book.id)}
+            onPress={() => handleSaveBook(item)}
           >
-            <View style={styles.trendingRank}>
-              <Text style={styles.trendingRankText}>{index + 1}</Text>
-            </View>
-            <View style={styles.trendingCover}>
-              <View style={styles.trendingCoverAccent} />
-              <Ionicons name="book-outline" size={22} color={SCRIBD_INK} />
-            </View>
-            <View style={styles.trendingInfo}>
-              <Text style={styles.trendingTitle} numberOfLines={1}>
-                {book.title}
-              </Text>
-              <Text style={styles.trendingAuthor} numberOfLines={1}>
-                {book.author}
-              </Text>
-              <View style={styles.trendingMeta}>
-                <Ionicons name="star" size={12} color={SCRIBD_ACCENT} />
-                <Text style={styles.trendingRating}>{book.rating}</Text>
-              </View>
-            </View>
+            <Ionicons
+              name={isSaved ? "bookmark" : "bookmark-outline"}
+              size={14}
+              color={SCRIBD_ACCENT}
+            />
           </TouchableOpacity>
-        ))}
-      </View>
+        </View>
+      </TouchableOpacity>
     );
   };
 
@@ -189,7 +201,11 @@ export const DashboardScreen: React.FC<Props> = ({ navigation }) => {
           <Ionicons name="search" size={18} color={colors.textMuted} />
           <TextInput
             style={styles.searchInput}
-            placeholder={aiMode ? "Ask AI about books..." : "Search books..."}
+            placeholder={
+              aiMode
+                ? `${t("dashboard.searchBar.aiPlaceholder")}`
+                : `${t("dashboard.searchBar.placeholder")}`
+            }
             placeholderTextColor={colors.textMuted}
             value={search}
             onChangeText={setSearch}
@@ -215,10 +231,14 @@ export const DashboardScreen: React.FC<Props> = ({ navigation }) => {
         {!isSubscribed && (
           <View style={styles.subscribeCard}>
             <View style={styles.subscribeContent}>
-              <Text style={styles.subscribeEyebrow}>SUBSCRIPTION</Text>
-              <Text style={styles.subscribeTitle}>Unlimited borrowing</Text>
+              <Text style={styles.subscribeEyebrow}>
+                {t("subscription.title")}
+              </Text>
+              <Text style={styles.subscribeTitle}>
+                {t("subscription.unlimited")}
+              </Text>
               <Text style={styles.subscribeSubtitle}>
-                Subscribe once, read everywhere with no extra cost.
+                {t("subscription.subscribeOnce")}
               </Text>
             </View>
             <TouchableOpacity
@@ -242,43 +262,89 @@ export const DashboardScreen: React.FC<Props> = ({ navigation }) => {
                 navigation.navigate("ProfileTab", { screen: "Subscription" });
               }}
             >
-              <Text style={styles.subscribeButtonText}>Subscribe Now</Text>
+              <Text style={styles.subscribeButtonText}>
+                {t("subscription.subscribe")}
+              </Text>
             </TouchableOpacity>
           </View>
         )}
 
-        <View style={styles.section}>
-          <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>Featured for you</Text>
-            <TouchableOpacity
-              onPress={() => navigation.navigate("BookList", {})}
-            >
-              <Text style={styles.sectionLink}>See all</Text>
-            </TouchableOpacity>
+        {loading ? (
+          <View style={styles.section}>
+            <View style={styles.sectionHeader}>
+              <Shimmer style={styles.skeletonSectionTitle} />
+              <Shimmer style={styles.skeletonSectionLink} />
+            </View>
+            <View style={styles.skeletonRow}>
+              {Array.from({ length: 3 }).map((_, index) => (
+                <View key={`featured-skeleton-${index}`} style={styles.skeletonCard}>
+                  <Shimmer style={styles.skeletonCover} />
+                  <Shimmer style={styles.skeletonLine} />
+                  <Shimmer style={styles.skeletonLineSmall} />
+                </View>
+              ))}
+            </View>
           </View>
-          <FlatList
-            horizontal
-            data={books}
-            renderItem={renderBook}
-            keyExtractor={(item) => item.id}
-            contentContainerStyle={styles.bookList}
-            showsHorizontalScrollIndicator={false}
-          />
-        </View>
+        ) : (
+          <>
+            <View style={styles.section}>
+              <View style={styles.sectionHeader}>
+                <Text style={styles.sectionTitle}>
+                  {t("dashboard.featuredForYou")}
+                </Text>
+                <TouchableOpacity
+                  onPress={() => navigation.navigate("BookList", {})}
+                >
+                  <Text style={styles.sectionLink}>{t("dashboard.more")}</Text>
+                </TouchableOpacity>
+              </View>
+              <FlatList
+                horizontal
+                data={books}
+                renderItem={renderBook}
+                keyExtractor={(item) => item.id}
+                contentContainerStyle={styles.bookList}
+                showsHorizontalScrollIndicator={false}
+              />
+            </View>
 
-        <View style={styles.section}>
-          <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>Trending now</Text>
-            <TouchableOpacity onPress={() => navigation.navigate("Trending")}>
-              <Text style={styles.sectionLink}>More</Text>
-            </TouchableOpacity>
-          </View>
-          <TrendingNowView
-            books={[...books].reverse()}
-            onPress={(bookId) => navigation.navigate("BookDetails", { bookId })}
-          />
-        </View>
+            <View style={styles.section}>
+              <View style={styles.sectionHeader}>
+                <Text style={styles.sectionTitle}>
+                  {t("dashboard.trendingNow")}
+                </Text>
+                <TouchableOpacity onPress={() => navigation.navigate("BookList", {})}>
+                  <Text style={styles.sectionLink}>{t("dashboard.more")}</Text>
+                </TouchableOpacity>
+              </View>
+              <FlatList
+                horizontal
+                data={[...books].reverse()}
+                renderItem={renderBook}
+                keyExtractor={(item) => item.id}
+                contentContainerStyle={styles.bookList}
+                showsHorizontalScrollIndicator={false}
+              />
+            </View>
+          </>
+        )}
       </ScrollView>
+
+      <BookDetailsBottomSheet
+        visible={isSheetVisible}
+        book={selectedBook}
+        isSaved={
+          selectedBook
+            ? savedItems.some((saved) => saved.book.id === selectedBook.id)
+            : false
+        }
+        onClose={() => setIsSheetVisible(false)}
+        onSave={handleSaveBook}
+        onRead={(book) => {
+          setIsSheetVisible(false);
+          navigation.navigate("BookDetails", { bookId: book.id });
+        }}
+      />
     </SafeAreaView>
   );
 };
@@ -394,6 +460,49 @@ const createStyles = (colors: any) =>
       paddingLeft: spacing.lg,
       paddingRight: spacing.lg,
     },
+    skeletonSectionTitle: {
+      width: 140,
+      height: 18,
+      borderRadius: 6,
+      backgroundColor: colors.border,
+    },
+    skeletonSectionLink: {
+      width: 48,
+      height: 14,
+      borderRadius: 6,
+      backgroundColor: colors.border,
+    },
+    skeletonRow: {
+      flexDirection: "row",
+      gap: spacing.md,
+      paddingHorizontal: spacing.lg,
+      paddingBottom: spacing.sm,
+    },
+    skeletonCard: {
+      width: 150,
+      borderRadius: 18,
+      backgroundColor: colors.surface,
+      padding: spacing.md,
+      gap: spacing.sm,
+    },
+    skeletonCover: {
+      width: "100%",
+      height: 140,
+      borderRadius: 14,
+      backgroundColor: colors.border,
+    },
+    skeletonLine: {
+      width: "90%",
+      height: 12,
+      borderRadius: 6,
+      backgroundColor: colors.border,
+    },
+    skeletonLineSmall: {
+      width: "60%",
+      height: 10,
+      borderRadius: 6,
+      backgroundColor: colors.border,
+    },
     bookCard: {
       width: 150,
       marginRight: spacing.md,
@@ -436,6 +545,15 @@ const createStyles = (colors: any) =>
       color: colors.textSecondary,
       marginLeft: 2,
       marginRight: spacing.sm,
+    },
+    saveButton: {
+      marginLeft: "auto",
+      width: 28,
+      height: 28,
+      borderRadius: 14,
+      alignItems: "center",
+      justifyContent: "center",
+      backgroundColor: "rgba(227, 18, 38, 0.08)",
     },
     aiToggle: {
       padding: 8,
@@ -520,5 +638,16 @@ const createStyles = (colors: any) =>
     trendingRating: {
       fontSize: 12,
       color: colors.textSecondary,
+    },
+    trendingSaveButton: {
+      width: 30,
+      height: 30,
+      borderRadius: 15,
+      alignItems: "center",
+      justifyContent: "center",
+      backgroundColor: "rgba(227, 18, 38, 0.08)",
+    },
+    trendingSaveButtonActive: {
+      backgroundColor: "rgba(227, 18, 38, 0.16)",
     },
   });

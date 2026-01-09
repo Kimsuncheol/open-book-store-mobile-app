@@ -9,6 +9,7 @@ import {
 import { Ionicons } from "@expo/vector-icons";
 import { useTheme } from "../../context/ThemeContext";
 import { spacing } from "../../theme/colors";
+import { useTranslation } from "react-i18next";
 
 const SCRIBD_ACCENT = "#E31226";
 const SCRIBD_PAPER = "#F8F6F2";
@@ -31,6 +32,7 @@ export const SearchBar: React.FC<SearchBarProps> = ({
   aiSearching,
 }) => {
   const { colors } = useTheme();
+  const { t } = useTranslation();
 
   return (
     <View
@@ -42,7 +44,11 @@ export const SearchBar: React.FC<SearchBarProps> = ({
       <Ionicons name="search" size={18} color={colors.textMuted} />
       <TextInput
         style={[styles.searchInput, { color: colors.textPrimary }]}
-        placeholder={aiMode ? "Ask AI about books..." : "Search books..."}
+        placeholder={
+          aiMode
+            ? t("dashboard.searchBar.aiPlaceholder")
+            : t("dashboard.searchBar.placeholder")
+        }
         placeholderTextColor={colors.textMuted}
         value={search}
         onChangeText={onSearchChange}

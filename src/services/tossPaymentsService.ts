@@ -1,5 +1,5 @@
 // Toss Payments Service
-import { CartItem } from '../context/CartContext';
+import { CartItem } from '../context/SavedContext';
 
 export const TOSS_CLIENT_KEY = process.env.TOSS_CLIENT_KEY || 'test_ck_D5GePWvyJnrK0W0k6q8gLzN97Eoq';
 export const TOSS_SECRET_KEY = process.env.TOSS_SECRET_KEY || 'test_sk_zXLkKEypNArWmo50nX3lmeaxYG5R';

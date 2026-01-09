@@ -3,6 +3,7 @@ import { View, Text, TouchableOpacity, StyleSheet } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useTheme, ThemeMode } from "../../context/ThemeContext";
 import { spacing, typography, borderRadius } from "../../theme/colors";
+import { useTranslation } from "react-i18next";
 
 const themeOptions: { value: ThemeMode; label: string; icon: string }[] = [
   { value: "light", label: "Light", icon: "sunny" },
@@ -12,11 +13,12 @@ const themeOptions: { value: ThemeMode; label: string; icon: string }[] = [
 
 export const ThemeSelector: React.FC = () => {
   const { colors, themeMode, setThemeMode } = useTheme();
+  const { t } = useTranslation();
 
   return (
     <View style={styles.container}>
       <Text style={[styles.sectionTitle, { color: colors.textMuted }]}>
-        Appearance
+        {t("settings.theme")}
       </Text>
       <View style={styles.themeSelector}>
         {themeOptions.map((option) => (
@@ -52,7 +54,7 @@ export const ThemeSelector: React.FC = () => {
                 themeMode === option.value && { color: colors.textLight },
               ]}
             >
-              {option.label}
+              {t(option.label)}
             </Text>
           </TouchableOpacity>
         ))}

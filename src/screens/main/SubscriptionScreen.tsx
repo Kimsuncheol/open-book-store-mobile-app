@@ -20,33 +20,42 @@ const SCRIBD_PAPER = "#F8F6F2";
 
 type PlanType = "monthly" | "annual";
 
-const perks = [
-  { icon: "library-outline", label: "Unlimited borrowing" },
-  { icon: "cloud-download-outline", label: "Offline reading on any device" },
-  { icon: "sparkles-outline", label: "AI summaries and insights" },
-  { icon: "card-outline", label: "No extra fees per book" },
-];
+import { useLanguage } from "../../context/LanguageContext";
+
+// ...
 
 export const SubscriptionScreen: React.FC<SubscriptionScreenProps> = ({
   navigation,
 }) => {
   const { colors } = useTheme();
+  const { t } = useLanguage();
   const { user, subscriptionStatus, isSubscribed } = useAuth();
   const [selectedPlan, setSelectedPlan] = useState<PlanType>("monthly");
   const styles = createStyles(colors);
 
+  const perks = [
+    { icon: "library-outline", label: t("subscription.perks.unlimited") },
+    { icon: "cloud-download-outline", label: t("subscription.perks.offline") },
+    { icon: "sparkles-outline", label: t("subscription.perks.ai") },
+    { icon: "card-outline", label: t("subscription.perks.fees") },
+  ];
+
   const handleContinueToBilling = () => {
     if (!user) {
-      Alert.alert("Sign In Required", "Please sign in to subscribe", [
-        { text: "Cancel", style: "cancel" },
-        {
-          text: "Sign In",
-          onPress: () =>
-            (navigation.getParent() as any)?.navigate("Auth", {
-              screen: "SignIn",
-            }),
-        },
-      ]);
+      Alert.alert(
+        t("subscription.title"), // "Subscription" or a better title like "Sign In"
+        t("auth.signIn") + " required", // Simplified for now or add key
+        [
+          { text: t("common.cancel"), style: "cancel" },
+          {
+            text: t("auth.signIn"),
+            onPress: () =>
+              (navigation.getParent() as any)?.navigate("Auth", {
+                screen: "SignIn",
+              }),
+          },
+        ]
+      );
       return;
     }
     navigation.navigate("SubscriptionBilling", { plan: selectedPlan } as any);
@@ -59,23 +68,23 @@ export const SubscriptionScreen: React.FC<SubscriptionScreenProps> = ({
     const endDateStr = endDate ? endDate.toLocaleDateString() : "unknown";
 
     Alert.alert(
-      "Cancel Subscription",
-      `Your subscription will remain active until ${endDateStr}. You can still access all books until then.`,
+      t("subscription.cancelSubscription"),
+      `Your subscription will remain active until ${endDateStr}.`, // TODO: localize message with interpolation
       [
-        { text: "Keep Subscription", style: "cancel" },
+        { text: t("common.cancel"), style: "cancel" },
         {
-          text: "Cancel",
+          text: t("subscription.cancelSubscription"),
           style: "destructive",
           onPress: async () => {
             try {
               await cancelSubscription(user.uid);
               Alert.alert(
-                "Subscription Cancelled",
+                "Subscription Cancelled", // TODO: localize
                 `You'll have access until ${endDateStr}`
               );
               navigation.goBack();
             } catch (error) {
-              Alert.alert("Error", "Failed to cancel subscription");
+              Alert.alert(t("common.error"), "Failed to cancel subscription");
             }
           },
         },
@@ -98,22 +107,26 @@ export const SubscriptionScreen: React.FC<SubscriptionScreenProps> = ({
         >
           <Ionicons name="arrow-back" size={22} color={colors.textPrimary} />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Subscription</Text>
+        <Text style={styles.headerTitle}>{t("subscription.title")}</Text>
         <View style={{ width: 24 }} />
       </View>
 
       <ScrollView contentContainerStyle={styles.scrollContent}>
         {isSubscribed && (
           <View style={styles.currentPlanCard}>
-            <Text style={styles.currentPlanTitle}>Current Plan</Text>
+            <Text style={styles.currentPlanTitle}>
+              {t("subscription.currentPlan")}
+            </Text>
             <Text style={styles.currentPlanDetails}>
-              {subscriptionStatus.plan === "annual" ? "Annual" : "Monthly"}{" "}
-              Subscription
+              {subscriptionStatus.plan === "annual"
+                ? t("subscription.annual")
+                : t("subscription.monthly")}{" "}
+              {t("subscription.title")}
             </Text>
             {subscriptionStatus.endDate && (
               <Text style={styles.currentPlanDate}>
                 {subscriptionStatus.status === "cancelled"
-                  ? "Active until"
+                  ? "Active until" // TODO: localize
                   : "Renews on"}
                 : {subscriptionStatus.endDate.toLocaleDateString()}
               </Text>
@@ -123,7 +136,9 @@ export const SubscriptionScreen: React.FC<SubscriptionScreenProps> = ({
                 style={styles.cancelButton}
                 onPress={handleCancelSubscription}
               >
-                <Text style={styles.cancelButtonText}>Cancel Subscription</Text>
+                <Text style={styles.cancelButtonText}>
+                  {t("subscription.cancelSubscription")}
+                </Text>
               </TouchableOpacity>
             )}
           </View>
@@ -133,9 +148,11 @@ export const SubscriptionScreen: React.FC<SubscriptionScreenProps> = ({
           <>
             <View style={styles.heroCard}>
               <Text style={styles.heroEyebrow}>OPENBOOKSTORE</Text>
-              <Text style={styles.heroTitle}>Read without limits</Text>
+              <Text style={styles.heroTitle}>
+                {t("subscription.readWithoutLimits")}
+              </Text>
               <Text style={styles.heroSubtitle}>
-                One subscription unlocks every book with no additional payments.
+                {t("subscription.oneSubscription")}
               </Text>
             </View>
 
@@ -149,7 +166,9 @@ export const SubscriptionScreen: React.FC<SubscriptionScreenProps> = ({
                 onPress={() => setSelectedPlan("monthly")}
               >
                 <View style={styles.planHeader}>
-                  <Text style={styles.planTitle}>Monthly</Text>
+                  <Text style={styles.planTitle}>
+                    {t("subscription.monthly")}
+                  </Text>
                   {selectedPlan === "monthly" && (
                     <Ionicons
                       name="checkmark-circle"
@@ -159,7 +178,9 @@ export const SubscriptionScreen: React.FC<SubscriptionScreenProps> = ({
                   )}
                 </View>
                 <Text style={styles.planPrice}>₩9,900</Text>
-                <Text style={styles.planPeriod}>per month</Text>
+                <Text style={styles.planPeriod}>
+                  {t("subscription.perMonth")}
+                </Text>
               </TouchableOpacity>
 
               <TouchableOpacity
@@ -170,7 +191,9 @@ export const SubscriptionScreen: React.FC<SubscriptionScreenProps> = ({
                 onPress={() => setSelectedPlan("annual")}
               >
                 <View style={styles.planHeader}>
-                  <Text style={styles.planTitle}>Annual</Text>
+                  <Text style={styles.planTitle}>
+                    {t("subscription.annual")}
+                  </Text>
                   {selectedPlan === "annual" && (
                     <Ionicons
                       name="checkmark-circle"
@@ -180,15 +203,19 @@ export const SubscriptionScreen: React.FC<SubscriptionScreenProps> = ({
                   )}
                 </View>
                 <Text style={styles.planPrice}>₩99,000</Text>
-                <Text style={styles.planPeriod}>per year</Text>
+                <Text style={styles.planPeriod}>
+                  {t("subscription.perYear")}
+                </Text>
                 <View style={styles.saveBadge}>
-                  <Text style={styles.saveText}>Save 17%</Text>
+                  <Text style={styles.saveText}>{t("subscription.save")}</Text>
                 </View>
               </TouchableOpacity>
             </View>
 
             <View style={styles.perksCard}>
-              <Text style={styles.sectionTitle}>What you get</Text>
+              <Text style={styles.sectionTitle}>
+                {t("subscription.whatYouGet")}
+              </Text>
               {perks.map((perk) => (
                 <View key={perk.label} style={styles.perkRow}>
                   <View style={styles.perkIcon}>
@@ -207,11 +234,17 @@ export const SubscriptionScreen: React.FC<SubscriptionScreenProps> = ({
               style={styles.ctaButton}
               onPress={handleContinueToBilling}
             >
-              <Text style={styles.ctaButtonText}>Continue to Billing</Text>
+              <Text style={styles.ctaButtonText}>
+                {t("subscription.continueToBilling")}
+              </Text>
             </TouchableOpacity>
             <Text style={styles.disclaimer}>
-              By subscribing you agree to the terms and{" "}
-              {selectedPlan === "monthly" ? "monthly" : "annual"} billing.
+              {t("subscription.disclaimer", {
+                plan:
+                  selectedPlan === "monthly"
+                    ? t("subscription.monthly")
+                    : t("subscription.annual"),
+              })}
             </Text>
           </>
         )}

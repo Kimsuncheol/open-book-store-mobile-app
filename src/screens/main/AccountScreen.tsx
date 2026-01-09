@@ -14,6 +14,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { useTheme } from "../../context/ThemeContext";
 import { useAuth } from "../../context/AuthContext";
+import { useLanguage } from "../../context/LanguageContext";
 import {
   resetPassword,
   reauthenticateUser,
@@ -25,6 +26,7 @@ import type { AccountScreenProps } from "../../types/navigation";
 
 export const AccountScreen: React.FC<AccountScreenProps> = ({ navigation }) => {
   const { colors } = useTheme();
+  const { t } = useLanguage();
   const { user } = useAuth();
   const [modalVisible, setModalVisible] = useState(false);
   const [password, setPassword] = useState("");
@@ -99,20 +101,22 @@ export const AccountScreen: React.FC<AccountScreenProps> = ({ navigation }) => {
         <TouchableOpacity onPress={() => navigation.goBack()}>
           <Ionicons name="arrow-back" size={24} color={colors.textPrimary} />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Account</Text>
+        <Text style={styles.headerTitle}>{t("profile.account")}</Text>
         <View style={{ width: 24 }} />
       </View>
 
       <View style={styles.content}>
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Security</Text>
+          <Text style={styles.sectionTitle}>{t("account.security")}</Text>
           <TouchableOpacity
             style={styles.actionRow}
             onPress={handleResetPassword}
           >
             <View style={styles.actionInfo}>
               <Ionicons name="key-outline" size={24} color={colors.primary} />
-              <Text style={styles.actionLabel}>Reset Password</Text>
+              <Text style={styles.actionLabel}>
+                {t("account.resetPassword")}
+              </Text>
             </View>
             <Ionicons
               name="chevron-forward"
@@ -124,13 +128,13 @@ export const AccountScreen: React.FC<AccountScreenProps> = ({ navigation }) => {
 
         <View style={styles.section}>
           <Text style={[styles.sectionTitle, { color: colors.error }]}>
-            Danger Zone
+            {t("account.dangerZone")}
           </Text>
           <TouchableOpacity
             style={styles.optOutButton}
             onPress={initiateOptOut}
           >
-            <Text style={styles.optOutText}>Opt Out (Delete Account)</Text>
+            <Text style={styles.optOutText}>{t("account.optOut")}</Text>
           </TouchableOpacity>
         </View>
       </View>
@@ -147,15 +151,14 @@ export const AccountScreen: React.FC<AccountScreenProps> = ({ navigation }) => {
           style={styles.modalOverlay}
         >
           <View style={styles.modalContent}>
-            <Text style={styles.modalTitle}>Confirm Deletion</Text>
-            <Text style={styles.modalText}>
-              Please enter your password to verify your identity before deleting
-              your account.
+            <Text style={styles.modalTitle}>
+              {t("account.confirmDeletion")}
             </Text>
+            <Text style={styles.modalText}>{t("account.enterPassword")}</Text>
 
             <TextInput
               style={styles.input}
-              placeholder="Enter Password"
+              placeholder={t("auth.password")}
               placeholderTextColor={colors.textMuted}
               secureTextEntry
               value={password}
@@ -165,7 +168,7 @@ export const AccountScreen: React.FC<AccountScreenProps> = ({ navigation }) => {
 
             <View style={styles.modalButtons}>
               <Button
-                title="Cancel"
+                title={t("common.cancel")}
                 variant="outline"
                 onPress={() => {
                   setModalVisible(false);
@@ -174,7 +177,7 @@ export const AccountScreen: React.FC<AccountScreenProps> = ({ navigation }) => {
                 style={{ flex: 1, marginRight: spacing.sm }}
               />
               <Button
-                title="Confirm"
+                title={t("common.confirm")}
                 onPress={handleOptOutConfirm}
                 loading={loading}
                 style={{ flex: 1, backgroundColor: colors.error }}

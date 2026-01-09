@@ -18,8 +18,13 @@ import type { SettingsScreenProps } from "../../types/navigation";
 
 type Props = SettingsScreenProps;
 
+import { useLanguage } from "../../context/LanguageContext";
+
+// ...
+
 export const SettingsScreen: React.FC<Props> = ({ navigation }) => {
   const { colors } = useTheme();
+  const { t } = useLanguage();
   const [notifications, setNotifications] = React.useState(true);
 
   const styles = createStyles(colors);
@@ -31,7 +36,7 @@ export const SettingsScreen: React.FC<Props> = ({ navigation }) => {
           <TouchableOpacity onPress={() => navigation.goBack()}>
             <Ionicons name="arrow-back" size={24} color={colors.textPrimary} />
           </TouchableOpacity>
-          <Text style={styles.headerTitle}>Settings</Text>
+          <Text style={styles.headerTitle}>{t("navigation.settings")}</Text>
           <View style={{ width: 24 }} />
         </View>
 

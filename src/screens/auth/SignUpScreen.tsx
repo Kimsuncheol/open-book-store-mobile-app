@@ -19,9 +19,11 @@ import { useTheme } from "../../context/ThemeContext";
 import { signUpWithEmail } from "../../services/authService";
 import { spacing } from "../../theme/colors";
 import type { SignUpScreenProps } from "../../types/navigation";
+import { useTranslation } from "react-i18next";
 
 export const SignUpScreen: React.FC<SignUpScreenProps> = ({ navigation }) => {
   const { colors, isDark } = useTheme();
+  const { t } = useTranslation();
   const insets = useSafeAreaInsets();
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
@@ -100,20 +102,20 @@ export const SignUpScreen: React.FC<SignUpScreenProps> = ({ navigation }) => {
             resizeMode="cover"
           />
           <Text style={[styles.title, { color: colors.textPrimary }]}>
-            Create Account
+            {t("signUp.title")}
           </Text>
         </View>
 
         {/* Form Section */}
         <View style={styles.form}>
           <Input
-            placeholder="Full Name"
+            placeholder={t("signUp.displayName")}
             value={name}
             onChangeText={setName}
             error={errors.name}
           />
           <Input
-            placeholder="Email"
+            placeholder={t("signUp.email")}
             value={email}
             onChangeText={setEmail}
             keyboardType="email-address"
@@ -121,7 +123,7 @@ export const SignUpScreen: React.FC<SignUpScreenProps> = ({ navigation }) => {
             error={errors.email}
           />
           <Input
-            placeholder="Password"
+            placeholder={t("signUp.password")}
             value={password}
             onChangeText={setPassword}
             secureTextEntry
@@ -129,7 +131,7 @@ export const SignUpScreen: React.FC<SignUpScreenProps> = ({ navigation }) => {
           />
           <PasswordStrengthIndicator password={password} />
           <Input
-            placeholder="Confirm Password"
+            placeholder={t("signUp.confirmPassword")}
             value={confirmPassword}
             onChangeText={setConfirmPassword}
             secureTextEntry
@@ -137,7 +139,7 @@ export const SignUpScreen: React.FC<SignUpScreenProps> = ({ navigation }) => {
           />
 
           <Button
-            title="Create Account"
+            title={t("signUp.signUp")}
             onPress={handleSignUp}
             loading={loading}
             style={{ marginTop: spacing.lg }}
@@ -147,10 +149,12 @@ export const SignUpScreen: React.FC<SignUpScreenProps> = ({ navigation }) => {
         {/* Footer */}
         <View style={styles.footer}>
           <Text style={[styles.footerText, { color: colors.textSecondary }]}>
-            Already have an account?{" "}
+            {t("signUp.haveAccount")}{" "}
           </Text>
           <TouchableOpacity onPress={() => navigation.navigate("SignIn")}>
-            <Text style={[styles.footerLink, { color: PRIMARY }]}>Sign In</Text>
+            <Text style={[styles.footerLink, { color: PRIMARY }]}>
+              {t("signUp.signInBtn")}
+            </Text>
           </TouchableOpacity>
         </View>
       </ScrollView>

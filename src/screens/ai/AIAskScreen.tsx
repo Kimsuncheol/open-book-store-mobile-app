@@ -1,4 +1,4 @@
-import React, { useState, useRef } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import {
   View,
   Text,
@@ -12,7 +12,15 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { useTheme } from "../../context/ThemeContext";
+import { useLanguage } from "../../context/LanguageContext";
+import { useAuth } from "../../context/AuthContext";
 import { askQuestion, clearConversation } from "../../services/aiService";
+import {
+  addAIChatMessage,
+  clearAIChatMessages,
+  getAIChatMessages,
+} from "../../services/firestoreService";
+import { Shimmer } from "../../components/Shimmer";
 import { spacing, typography, borderRadius } from "../../theme/colors";
 import type { AIAskScreenProps as Props } from "../../types/navigation";
 
@@ -26,18 +34,49 @@ export const AIAskScreen: React.FC<Props> = ({ navigation, route }) => {
   const bookId = route.params?.bookId || "general";
   const title = route.params?.title || "Open Bookstore";
   const { colors } = useTheme();
+  const { t } = useLanguage();
+  const { user } = useAuth();
+  const userId = user?.uid || "guest";
   const [messages, setMessages] = useState<Message[]>([
     {
       id: "0",
       role: "assistant",
-      content: `Hi! Ask me anything about "${title}".`,
+      content: t("aiAsk.intro", { title }),
     },
   ]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
+  const [historyLoading, setHistoryLoading] = useState(true);
   const listRef = useRef<FlatList>(null);
 
   const styles = createStyles(colors);
+
+  useEffect(() => {
+    let isMounted = true;
+    const loadMessages = async () => {
+      try {
+        const history = await getAIChatMessages(userId, bookId);
+        if (!isMounted) return;
+        if (history.length > 0) {
+          setMessages(
+            history.map((msg) => ({
+              id: msg.id,
+              role: msg.role,
+              content: msg.content,
+            }))
+          );
+        }
+      } catch {
+        // Ignore load errors to keep the chat usable
+      } finally {
+        if (isMounted) setHistoryLoading(false);
+      }
+    };
+    loadMessages();
+    return () => {
+      isMounted = false;
+    };
+  }, [bookId, userId]);
 
   const handleSend = async () => {
     if (!input.trim() || loading) return;
@@ -48,6 +87,9 @@ export const AIAskScreen: React.FC<Props> = ({ navigation, route }) => {
       content: input.trim(),
     };
     setMessages((prev) => [...prev, userMsg]);
+    addAIChatMessage(userId, bookId, "user", userMsg.content).catch(
+      () => undefined
+    );
     setInput("");
     setLoading(true);
 
@@ -65,11 +107,14 @@ export const AIAskScreen: React.FC<Props> = ({ navigation, route }) => {
         content: response,
       };
       setMessages((prev) => [...prev, aiMsg]);
+      addAIChatMessage(userId, bookId, "assistant", response).catch(
+        () => undefined
+      );
     } catch {
       const errorMsg: Message = {
         id: (Date.now() + 1).toString(),
         role: "assistant",
-        content: "Sorry, something went wrong.",
+        content: t("aiAsk.error"),
       };
       setMessages((prev) => [...prev, errorMsg]);
     }
@@ -78,11 +123,12 @@ export const AIAskScreen: React.FC<Props> = ({ navigation, route }) => {
 
   const handleClear = () => {
     clearConversation(bookId);
+    clearAIChatMessages(userId, bookId).catch(() => undefined);
     setMessages([
       {
         id: "0",
         role: "assistant",
-        content: `Hi! Ask me anything about "${title}".`,
+        content: t("aiAsk.intro", { title }),
       },
     ]);
   };
@@ -100,7 +146,7 @@ export const AIAskScreen: React.FC<Props> = ({ navigation, route }) => {
             <Ionicons name="arrow-back" size={24} color={colors.textPrimary} />
           </TouchableOpacity>
           <View style={styles.headerInfo}>
-            <Text style={styles.headerTitle}>Ask AI</Text>
+            <Text style={styles.headerTitle}>{t("aiAsk.title")}</Text>
             <Text style={styles.headerSubtitle} numberOfLines={1}>
               {title}
             </Text>
@@ -112,45 +158,81 @@ export const AIAskScreen: React.FC<Props> = ({ navigation, route }) => {
 
         <FlatList
           ref={listRef}
-          data={messages}
+          data={
+            historyLoading && messages.length === 1
+              ? [
+                  { id: "s-1", role: "assistant", content: "", skeleton: true },
+                  { id: "s-2", role: "user", content: "", skeleton: true },
+                  { id: "s-3", role: "assistant", content: "", skeleton: true },
+                ]
+              : messages
+          }
           keyExtractor={(item) => item.id}
           keyboardShouldPersistTaps="handled"
           contentContainerStyle={styles.messages}
           onContentSizeChange={() => listRef.current?.scrollToEnd()}
-          renderItem={({ item }) => (
-            <View
-              style={[styles.msgRow, item.role === "user" && styles.msgRowUser]}
-            >
-              {item.role === "assistant" && (
-                <View style={styles.avatar}>
-                  <Ionicons name="sparkles" size={16} color={colors.primary} />
-                </View>
-              )}
-              <View
-                style={[
-                  styles.bubble,
-                  item.role === "user" ? styles.userBubble : styles.aiBubble,
-                ]}
-              >
-                <Text
+          renderItem={({ item }) => {
+            if ((item as any).skeleton) {
+              return (
+                <View
                   style={[
-                    styles.msgText,
-                    item.role === "user" && styles.userText,
+                    styles.msgRow,
+                    item.role === "user" && styles.msgRowUser,
                   ]}
                 >
-                  {item.content}
-                </Text>
+                  {item.role === "assistant" && (
+                    <Shimmer style={styles.avatarSkeleton} />
+                  )}
+                  <Shimmer
+                    style={[
+                      styles.skeletonBubble,
+                      item.role === "user"
+                        ? styles.skeletonBubbleUser
+                        : styles.skeletonBubbleAi,
+                    ]}
+                  />
+                </View>
+              );
+            }
+
+            return (
+              <View
+                style={[
+                  styles.msgRow,
+                  item.role === "user" && styles.msgRowUser,
+                ]}
+              >
+                {item.role === "assistant" && (
+                  <View style={styles.avatar}>
+                    <Ionicons name="sparkles" size={16} color={colors.primary} />
+                  </View>
+                )}
+                <View
+                  style={[
+                    styles.bubble,
+                    item.role === "user" ? styles.userBubble : styles.aiBubble,
+                  ]}
+                >
+                  <Text
+                    style={[
+                      styles.msgText,
+                      item.role === "user" && styles.userText,
+                    ]}
+                  >
+                    {item.content}
+                  </Text>
+                </View>
               </View>
-            </View>
-          )}
+            );
+          }}
         />
 
-        {loading && <Text style={styles.typingText}>AI is typing...</Text>}
+        {loading && <Text style={styles.typingText}>{t("aiAsk.typing")}</Text>}
 
         <View style={styles.inputBar}>
           <TextInput
             style={styles.input}
-            placeholder="Ask a question..."
+            placeholder={t("aiAsk.placeholder")}
             placeholderTextColor={colors.textMuted}
             value={input}
             onChangeText={setInput}
@@ -183,7 +265,6 @@ const createStyles = (colors: any) =>
     header: {
       flexDirection: "row",
       alignItems: "center",
-      // justifyContent: "center",
       paddingVertical: spacing.xs,
       paddingHorizontal: spacing.md,
       borderBottomWidth: 1,
@@ -204,6 +285,13 @@ const createStyles = (colors: any) =>
       justifyContent: "center",
       marginRight: spacing.sm,
     },
+    avatarSkeleton: {
+      width: 28,
+      height: 28,
+      borderRadius: 14,
+      backgroundColor: colors.border,
+      marginRight: spacing.sm,
+    },
     bubble: {
       maxWidth: "75%",
       padding: spacing.md,
@@ -213,6 +301,17 @@ const createStyles = (colors: any) =>
     aiBubble: { backgroundColor: colors.surface, borderBottomLeftRadius: 4 },
     msgText: { ...typography.body, color: colors.textPrimary },
     userText: { color: colors.textLight },
+    skeletonBubble: {
+      height: 44,
+      borderRadius: borderRadius.lg,
+      backgroundColor: colors.border,
+    },
+    skeletonBubbleUser: {
+      width: "60%",
+    },
+    skeletonBubbleAi: {
+      width: "75%",
+    },
     typingText: {
       ...typography.caption,
       color: colors.textMuted,
@@ -220,9 +319,10 @@ const createStyles = (colors: any) =>
     },
     inputBar: {
       flexDirection: "row",
-      alignItems: "flex-end",
+      alignItems: "center",
       paddingHorizontal: spacing.md,
-      paddingVertical: spacing.md,
+      paddingTop: spacing.md,
+      paddingBottom: spacing.xs,
       borderTopWidth: 1,
       borderTopColor: colors.border,
     },

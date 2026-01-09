@@ -1,531 +1,337 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
-  View,
-  Text,
-  StyleSheet,
-  ScrollView,
-  TouchableOpacity,
+  ActivityIndicator,
   Alert,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
 } from "react-native";
-import {
-  SafeAreaView,
-  useSafeAreaInsets,
-} from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
-import { Button } from "../../components/Button";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useTheme } from "../../context/ThemeContext";
 import { useAuth } from "../../context/AuthContext";
-import { useReviews } from "../../context/ReviewsContext";
-import { StarRating } from "../../components/StarRating";
-import { downloadPDF, getLocalBookPath } from "../../services/storageService";
+import { useSaved } from "../../context/SavedContext";
+import {
+  addSavedBook,
+  getBook,
+  incrementUserDownloads,
+  addUserDownload,
+  removeSavedBook,
+  Book,
+} from "../../services/firestoreService";
+import { downloadPDF } from "../../services/storageService";
 import { spacing, typography, borderRadius } from "../../theme/colors";
-import type { BookDetailsScreenProps } from "../../types/navigation";
+import type { BookDetailsScreenProps as Props } from "../../types/navigation";
 
-type Props = BookDetailsScreenProps;
-
-// Mock book data
-const mockBook = {
-  id: "1",
-  title: "The Great Gatsby",
-  author: "F. Scott Fitzgerald",
-  description:
-    "A classic novel about the American Dream, set in the Jazz Age. It follows the mysterious millionaire Jay Gatsby and his obsession with the beautiful Daisy Buchanan.",
-  price: 9.99,
-  rating: 4.5,
-  downloads: 1200,
-  pages: 180,
-  category: "Fiction",
-  pdfUrl: "https://example.com/book.pdf",
-};
+const COVER_BG = "#F8F6F2";
 
 export const BookDetailsScreen: React.FC<Props> = ({ navigation, route }) => {
-  const { bookId } = route.params;
   const { colors } = useTheme();
   const insets = useSafeAreaInsets();
   const { user } = useAuth();
-  const { getBookReviews, getAverageRating, getUserReview, deleteReview } =
-    useReviews();
-  const [loading, setLoading] = useState(false);
-  const [downloaded, setDownloaded] = useState(false);
+  const { addToSaved, removeFromSaved, savedItems } = useSaved();
+  const [book, setBook] = useState<Book | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [downloading, setDownloading] = useState(false);
 
-  const styles = createStyles(colors, insets.bottom);
-  const PRIMARY = "#8B4513";
+  useEffect(() => {
+    let isMounted = true;
+    const loadBook = async () => {
+      try {
+        const result = await getBook(route.params.bookId);
+        if (isMounted) setBook(result);
+      } finally {
+        if (isMounted) setLoading(false);
+      }
+    };
+    loadBook();
+    return () => {
+      isMounted = false;
+    };
+  }, [route.params.bookId]);
 
-  // Get reviews data
-  const reviews = getBookReviews(mockBook.id);
-  const averageRating = getAverageRating(mockBook.id);
-  const userReview = user?.uid ? getUserReview(mockBook.id, user.uid) : null;
+  const styles = createStyles(colors);
+
+  if (loading) {
+    return (
+      <View style={[styles.centered, { paddingTop: insets.top }]}>
+        <ActivityIndicator color={colors.primary} />
+      </View>
+    );
+  }
+
+  if (!book) {
+    return (
+      <View style={[styles.centered, { paddingTop: insets.top }]}>
+        <Text style={styles.emptyText}>Book not found.</Text>
+      </View>
+    );
+  }
+
+  const isSaved = savedItems.some((item) => item.book.id === book.id);
 
   const handleDownload = async () => {
-    setLoading(true);
-    try {
-      await downloadPDF(mockBook.pdfUrl, mockBook.id);
-      setDownloaded(true);
-      Alert.alert("Success", "Book downloaded successfully!");
-    } catch (error) {
-      Alert.alert("Error", "Failed to download book");
-    }
-    setLoading(false);
-  };
-
-  const handleRead = () => {
-    const filePath = getLocalBookPath(mockBook.id);
-    navigation.navigate("PDFViewer", {
-      bookId: mockBook.id,
-      title: mockBook.title,
-      filePath,
-    });
-  };
-
-  const handleAISummary = () => {
-    navigation.navigate("AISummary", {
-      bookId: mockBook.id,
-      title: mockBook.title,
-    });
-  };
-
-  const handleBorrow = async () => {
-    if (!user) {
-      Alert.alert("Sign In Required", "Please sign in to borrow books", [
-        { text: "Cancel", style: "cancel" },
-        {
-          text: "Sign In",
-          onPress: () =>
-            (navigation.getParent() as any)?.navigate("Auth", {
-              screen: "SignIn",
-            }),
-        },
-      ]);
+    if (!book || downloading) return;
+    if (!book.pdfUrl) {
+      Alert.alert("Download", "This book doesn't have a downloadable file.");
       return;
     }
-    await handleDownload();
+    if (!user) {
+      Alert.alert("Sign In Required", "Please sign in to download books.");
+      return;
+    }
+    setDownloading(true);
+    try {
+      await downloadPDF(book.pdfUrl, book.id);
+      await incrementUserDownloads(user.uid);
+      await addUserDownload(user.uid, book.id);
+      Alert.alert("Download", "Downloaded successfully.");
+    } catch (error) {
+      console.error("Download failed:", error);
+      Alert.alert("Download", "Failed to download the book.");
+    } finally {
+      setDownloading(false);
+    }
+  };
+
+  const handleToggleSave = async () => {
+    if (!book || saving) return;
+    setSaving(true);
+    try {
+      if (isSaved) {
+        removeFromSaved(book.id);
+        if (user) {
+          await removeSavedBook(book.id, user.uid);
+        }
+      } else {
+        addToSaved(book);
+        if (user) {
+          await addSavedBook(book.id, user.uid);
+        }
+      }
+    } finally {
+      setSaving(false);
+    }
   };
 
   return (
-    <SafeAreaView style={styles.container} edges={["top", "bottom"]}>
-      <ScrollView>
+    <View style={styles.container}>
+      <View style={[styles.header, { paddingTop: insets.top + spacing.sm }]}>
         <TouchableOpacity
-          style={styles.backButton}
+          style={styles.iconButton}
           onPress={() => navigation.goBack()}
         >
-          <Ionicons name="arrow-back" size={24} color={colors.textPrimary} />
+          <Ionicons name="arrow-back" size={20} color={colors.textPrimary} />
+        </TouchableOpacity>
+        <Text style={styles.headerTitle} numberOfLines={1}>
+          {book.title}
+        </Text>
+        <View style={styles.headerSpacer} />
+      </View>
+
+      <ScrollView
+        contentContainerStyle={[
+          styles.content,
+          { paddingBottom: spacing.xl + insets.bottom },
+        ]}
+      >
+        <View style={styles.cover}>
+          <Ionicons name="book-outline" size={48} color={colors.textPrimary} />
+        </View>
+
+        <View style={styles.metaBlock}>
+          <Text style={styles.title}>{book.title}</Text>
+          <Text style={styles.author}>{book.author}</Text>
+          <View style={styles.metaRow}>
+            <Ionicons name="star" size={12} color={colors.primary} />
+            <Text style={styles.metaText}>{book.rating}</Text>
+            <Text style={styles.metaDot}>•</Text>
+            <Text style={styles.metaText}>{book.category}</Text>
+          </View>
+        </View>
+
+        <Text style={styles.sectionTitle}>About</Text>
+        <Text style={styles.description}>
+          {book.description || "No description available."}
+        </Text>
+
+        <TouchableOpacity
+          style={styles.cta}
+          onPress={() =>
+            navigation.navigate("PDFViewer", {
+              bookId: book.id,
+              title: book.title,
+              filePath: "",
+            })
+          }
+        >
+          <Text style={styles.ctaText}>Read Now</Text>
         </TouchableOpacity>
 
-        {/* Book Cover with AI Buttons */}
-        <View style={styles.coverContainer}>
-          {/* AI Buttons on the left */}
-          <View style={styles.aiButtonsLeft}>
-            <TouchableOpacity
-              style={styles.aiButtonCompact}
-              onPress={handleAISummary}
-            >
-              <Ionicons name="sparkles" size={20} color={colors.primary} />
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={styles.aiButtonCompact}
-              onPress={() =>
-                navigation.navigate("AIAskTab", {
-                  screen: "AIAskMain",
-                  params: {
-                    bookId: mockBook.id,
-                    title: mockBook.title,
-                  },
-                })
-              }
-            >
-              <Ionicons
-                name="chatbubble-ellipses"
-                size={20}
-                color={colors.primary}
-              />
-            </TouchableOpacity>
-          </View>
-
-          {/* Book Cover */}
-          <View style={styles.cover}>
-            <Ionicons name="book" size={80} color={colors.primary} />
-          </View>
-          <View style={styles.emptySpace}></View>
-        </View>
-
-        {/* Book Info */}
-        <View style={styles.infoContainer}>
-          <Text style={styles.title}>{mockBook.title}</Text>
-          <Text style={styles.author}>by {mockBook.author}</Text>
-
-          <View style={styles.metaRow}>
-            <View style={styles.metaItem}>
-              <Ionicons name="star" size={16} color={colors.accent} />
-              <Text style={styles.metaText}>{mockBook.rating}</Text>
-            </View>
-            <View style={styles.metaItem}>
-              <Ionicons
-                name="cloud-download"
-                size={16}
-                color={colors.primary}
-              />
-              <Text style={styles.metaText}>{mockBook.downloads}</Text>
-            </View>
-            <View style={styles.metaItem}>
-              <Ionicons name="document-text" size={16} color={colors.primary} />
-              <Text style={styles.metaText}>{mockBook.pages} pages</Text>
-            </View>
-          </View>
-
-          <Text style={styles.description}>{mockBook.description}</Text>
-
-          {/* Reviews Section */}
-          <View style={styles.reviewsSection}>
-            <View style={styles.reviewsHeader}>
-              <Text
-                style={[styles.reviewsTitle, { color: colors.textPrimary }]}
-              >
-                Reviews
-              </Text>
-              {reviews.length > 0 && (
-                <TouchableOpacity
-                  onPress={() =>
-                    navigation.navigate("BookReviews", {
-                      bookId: mockBook.id,
-                      bookTitle: mockBook.title,
-                    })
-                  }
-                >
-                  <Text style={[styles.seeAllText, { color: PRIMARY }]}>
-                    See All ({reviews.length})
-                  </Text>
-                </TouchableOpacity>
-              )}
-            </View>
-
-            {reviews.length > 0 ? (
-              <>
-                {/* Average Rating */}
-                <View
-                  style={[
-                    styles.avgRatingCard,
-                    { backgroundColor: colors.surface },
-                  ]}
-                >
-                  <Text
-                    style={[
-                      styles.avgRatingValue,
-                      { color: colors.textPrimary },
-                    ]}
-                  >
-                    {averageRating.toFixed(1)}
-                  </Text>
-                  <StarRating rating={averageRating} size={16} />
-                  <Text
-                    style={[
-                      styles.avgRatingText,
-                      { color: colors.textSecondary },
-                    ]}
-                  >
-                    Based on {reviews.length} reviews
-                  </Text>
-                </View>
-
-                {/* Recent Reviews (max 3) */}
-                {reviews.slice(0, 3).map((review) => (
-                  <View
-                    key={review.id}
-                    style={[
-                      styles.reviewItem,
-                      { backgroundColor: colors.surface },
-                    ]}
-                  >
-                    <View style={styles.reviewItemHeader}>
-                      <View style={{ flex: 1 }}>
-                        <Text
-                          style={[
-                            styles.reviewerName,
-                            { color: colors.textPrimary },
-                          ]}
-                        >
-                          {review.userName}
-                        </Text>
-                        <StarRating rating={review.rating} size={12} />
-                      </View>
-
-                      {/* Edit/Delete for user's review */}
-                      {user?.uid === review.userId && (
-                        <View style={{ flexDirection: "row", gap: 8 }}>
-                          <TouchableOpacity
-                            onPress={() =>
-                              navigation.navigate("WriteReview", {
-                                bookId: mockBook.id,
-                                bookTitle: mockBook.title,
-                              })
-                            }
-                          >
-                            <Ionicons
-                              name="create-outline"
-                              size={18}
-                              color={PRIMARY}
-                            />
-                          </TouchableOpacity>
-                          <TouchableOpacity
-                            onPress={() => {
-                              Alert.alert(
-                                "Delete Review",
-                                "Are you sure you want to delete your review?",
-                                [
-                                  { text: "Cancel", style: "cancel" },
-                                  {
-                                    text: "Delete",
-                                    style: "destructive",
-                                    onPress: () => deleteReview(review.id),
-                                  },
-                                ]
-                              );
-                            }}
-                          >
-                            <Ionicons
-                              name="trash-outline"
-                              size={18}
-                              color="#F44336"
-                            />
-                          </TouchableOpacity>
-                        </View>
-                      )}
-                    </View>
-                    <Text
-                      style={[
-                        styles.reviewText,
-                        { color: colors.textSecondary },
-                      ]}
-                      numberOfLines={3}
-                    >
-                      {review.text}
-                    </Text>
-                  </View>
-                ))}
-              </>
-            ) : (
-              <View
-                style={[
-                  styles.noReviewsCard,
-                  { backgroundColor: colors.surface },
-                ]}
-              >
-                <Ionicons
-                  name="chatbubbles-outline"
-                  size={32}
-                  color={colors.textMuted}
-                />
-                <Text
-                  style={[styles.noReviewsText, { color: colors.textMuted }]}
-                >
-                  No reviews yet
-                </Text>
-              </View>
-            )}
-
-            {/* Write Review Button */}
-            <TouchableOpacity
-              style={[
-                styles.writeReviewBtn,
-                {
-                  backgroundColor: userReview ? colors.surface : PRIMARY,
-                  borderWidth: userReview ? 1 : 0,
-                  borderColor: PRIMARY,
-                },
-              ]}
-              onPress={() =>
-                navigation.navigate("WriteReview", {
-                  bookId: mockBook.id,
-                  bookTitle: mockBook.title,
-                })
-              }
-            >
-              <Ionicons
-                name={userReview ? "create" : "add-circle-outline"}
-                size={20}
-                color={userReview ? PRIMARY : "#FFFFFF"}
-              />
-              <Text
-                style={[
-                  styles.writeReviewText,
-                  { color: userReview ? PRIMARY : "#FFFFFF" },
-                ]}
-              >
-                {userReview ? "Edit Your Review" : "Write a Review"}
-              </Text>
-            </TouchableOpacity>
-          </View>
+        <View style={styles.actionRow}>
+          <TouchableOpacity
+            style={styles.actionButton}
+            onPress={handleDownload}
+            disabled={downloading}
+          >
+            <Ionicons name="download-outline" size={20} color={colors.textPrimary} />
+            <Text style={styles.actionText}>Download</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={styles.actionButton}
+            onPress={handleToggleSave}
+            disabled={saving}
+          >
+            <Ionicons
+              name={isSaved ? "bookmark" : "bookmark-outline"}
+              size={20}
+              color={colors.textPrimary}
+            />
+            <Text style={styles.actionText}>
+              {isSaved ? "Saved" : "Save"}
+            </Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.actionButton}>
+            <Ionicons name="list-outline" size={20} color={colors.textPrimary} />
+            <Text style={styles.actionText}>Add to List</Text>
+          </TouchableOpacity>
         </View>
       </ScrollView>
-
-      {/* Bottom Actions */}
-      <View style={styles.bottomBar}>
-        {downloaded ? (
-          <Button
-            title="Read Now"
-            onPress={handleRead}
-            style={{ flex: 1 }}
-            icon={
-              <Ionicons
-                name="book-outline"
-                size={20}
-                color={colors.textLight}
-              />
-            }
-          />
-        ) : (
-          <Button
-            title="Borrow for free"
-            onPress={handleBorrow}
-            style={{ flex: 1 }}
-          />
-        )}
-      </View>
-    </SafeAreaView>
+    </View>
   );
 };
 
-const createStyles = (colors: any, bottomInset: number) =>
+const createStyles = (colors: any) =>
   StyleSheet.create({
-    container: { flex: 1, backgroundColor: colors.background },
-    backButton: {
-      position: "absolute",
-      top: spacing.xs,
-      left: spacing.md,
-      zIndex: 10,
+    container: {
+      flex: 1,
+      backgroundColor: colors.background,
     },
-    coverContainer: {
-      flexDirection: "row",
+    centered: {
+      flex: 1,
       alignItems: "center",
       justifyContent: "center",
-      paddingTop: spacing.xxl + spacing.xl,
+      backgroundColor: colors.background,
+    },
+    emptyText: {
+      ...typography.body,
+      color: colors.textSecondary,
+    },
+    header: {
+      flexDirection: "row",
+      alignItems: "center",
+      paddingHorizontal: spacing.lg,
+      paddingBottom: spacing.sm,
+      borderBottomWidth: 1,
+      borderBottomColor: colors.border,
+      backgroundColor: colors.background,
+    },
+    iconButton: {
+      width: 36,
+      height: 36,
+      borderRadius: 18,
+      alignItems: "center",
+      justifyContent: "center",
+      backgroundColor: colors.surface,
+    },
+    headerTitle: {
+      flex: 1,
+      textAlign: "center",
+      ...typography.h3,
+      color: colors.textPrimary,
+      marginHorizontal: spacing.sm,
+    },
+    headerSpacer: {
+      width: 36,
+    },
+    content: {
+      paddingHorizontal: spacing.lg,
+      paddingTop: spacing.lg,
       gap: spacing.md,
     },
-    aiButtonsLeft: {
-      gap: spacing.sm,
-    },
-    aiButtonCompact: {
-      flexDirection: "row",
-      alignItems: "center",
-      backgroundColor: colors.surface,
-      padding: spacing.sm,
-      borderRadius: borderRadius.lg,
-      gap: spacing.xs,
-    },
     cover: {
-      width: 180,
-      height: 240,
-      backgroundColor: colors.surface,
+      width: 120,
+      height: 160,
       borderRadius: borderRadius.lg,
+      backgroundColor: COVER_BG,
       alignItems: "center",
       justifyContent: "center",
-      elevation: 4,
-      shadowColor: "#000",
-      shadowOffset: { width: 0, height: 2 },
-      shadowOpacity: 0.2,
-      shadowRadius: 8,
+      borderWidth: 1,
+      borderColor: colors.border,
+      alignSelf: "center",
     },
-    infoContainer: { padding: spacing.lg },
-    title: { ...typography.h2, color: colors.textPrimary, textAlign: "center" },
+    metaBlock: {
+      alignItems: "center",
+      gap: 6,
+    },
+    title: {
+      ...typography.h2,
+      color: colors.textPrimary,
+      textAlign: "center",
+    },
     author: {
       ...typography.body,
       color: colors.textSecondary,
-      textAlign: "center",
-      marginTop: spacing.xs,
     },
     metaRow: {
       flexDirection: "row",
-      justifyContent: "center",
-      marginTop: spacing.lg,
-    },
-    metaItem: {
-      flexDirection: "row",
       alignItems: "center",
-      marginHorizontal: spacing.md,
+      gap: 6,
     },
     metaText: {
-      ...typography.bodySmall,
+      ...typography.caption,
       color: colors.textSecondary,
-      marginLeft: 4,
+    },
+    metaDot: {
+      color: colors.textMuted,
+    },
+    sectionTitle: {
+      ...typography.h4,
+      color: colors.textPrimary,
     },
     description: {
-      ...typography.body,
-      color: colors.textSecondary,
-      marginTop: spacing.lg,
-      lineHeight: 24,
-    },
-    aiSection: {
-      flexDirection: "row",
-      justifyContent: "center",
-      marginTop: spacing.xl,
-    },
-    aiButton: {
-      flexDirection: "row",
-      alignItems: "center",
-      backgroundColor: colors.surface,
-      padding: spacing.md,
-      borderRadius: borderRadius.lg,
-      marginHorizontal: spacing.sm,
-    },
-    aiButtonText: {
       ...typography.bodySmall,
-      color: colors.primary,
-      marginLeft: spacing.xs,
-      fontWeight: "600",
+      color: colors.textSecondary,
+      lineHeight: 20,
     },
-    reviewsSection: { marginTop: spacing.xxl },
-    reviewsHeader: {
+    cta: {
+      height: 48,
+      borderRadius: 999,
+      backgroundColor: colors.primary,
+      alignItems: "center",
+      justifyContent: "center",
+      marginTop: spacing.sm,
+    },
+    ctaText: {
+      color: colors.textLight,
+      fontWeight: "700",
+      fontSize: 15,
+    },
+    actionRow: {
       flexDirection: "row",
       justifyContent: "space-between",
       alignItems: "center",
-      marginBottom: spacing.md,
+      gap: spacing.sm,
+      marginTop: spacing.xs,
     },
-    reviewsTitle: { fontSize: 20, fontWeight: "600" },
-    seeAllText: { fontSize: 14, fontWeight: "500" },
-    avgRatingCard: {
-      padding: spacing.lg,
-      borderRadius: 12,
-      alignItems: "center",
-      marginBottom: spacing.md,
-    },
-    avgRatingValue: { fontSize: 36, fontWeight: "700" },
-    avgRatingText: { fontSize: 12, marginTop: 4 },
-    reviewItem: {
-      padding: spacing.md,
-      borderRadius: 12,
-      marginBottom: spacing.sm,
-    },
-    reviewItemHeader: {
-      flexDirection: "row",
-      alignItems: "center",
-      marginBottom: spacing.xs,
-    },
-    reviewerName: { fontSize: 14, fontWeight: "500" },
-    reviewText: { fontSize: 14, lineHeight: 20 },
-    noReviewsCard: {
-      padding: spacing.xl,
-      borderRadius: 12,
-      alignItems: "center",
-    },
-    noReviewsText: { marginTop: spacing.sm, fontSize: 14 },
-    writeReviewBtn: {
-      flexDirection: "row",
+    actionButton: {
+      flex: 1,
       alignItems: "center",
       justifyContent: "center",
-      padding: spacing.md,
-      borderRadius: 12,
-      marginTop: spacing.md,
-      gap: 8,
+      paddingVertical: spacing.sm,
+      borderRadius: borderRadius.lg,
+      borderWidth: 1,
+      borderColor: colors.border,
+      backgroundColor: colors.surface,
+      gap: 6,
     },
-    writeReviewText: { fontSize: 14, fontWeight: "600" },
-    bottomBar: {
-      flexDirection: "row",
-      paddingHorizontal: spacing.lg,
-      paddingTop: spacing.lg,
-      paddingBottom: bottomInset - 60,
-      borderTopWidth: 1,
-      borderTopColor: colors.border,
-    },
-    emptySpace: {
-      width: 28,
+    actionText: {
+      ...typography.caption,
+      color: colors.textPrimary,
+      fontWeight: "600",
+      textAlign: "center",
     },
   });

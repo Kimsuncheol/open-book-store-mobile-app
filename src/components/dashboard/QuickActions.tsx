@@ -5,14 +5,12 @@ import { spacing } from "../../theme/colors";
 
 interface QuickActionsProps {
   navigation: any;
-  isSeller: boolean;
   colors: any;
   PRIMARY: string;
 }
 
 export const QuickActions: React.FC<QuickActionsProps> = ({
   navigation,
-  isSeller,
   colors,
   PRIMARY,
 }) => {
@@ -36,23 +34,13 @@ export const QuickActions: React.FC<QuickActionsProps> = ({
         <Text style={styles.actionText}>Downloads</Text>
       </TouchableOpacity>
 
-      {isSeller ? (
-        <TouchableOpacity
-          style={styles.actionButton}
-          onPress={() => navigation.navigate("SellerDashboard")}
-        >
-          <Ionicons name="stats-chart" size={24} color={colors.primary} />
-          <Text style={styles.actionText}>Dashboard</Text>
-        </TouchableOpacity>
-      ) : (
-        <TouchableOpacity
-          style={styles.actionButton}
-          onPress={() => navigation.navigate("Polls")}
-        >
-          <Ionicons name="bar-chart" size={24} color={colors.primary} />
-          <Text style={styles.actionText}>Polls</Text>
-        </TouchableOpacity>
-      )}
+      <TouchableOpacity
+        style={styles.actionButton}
+        onPress={() => navigation.navigate("Polls")}
+      >
+        <Ionicons name="bar-chart" size={24} color={colors.primary} />
+        <Text style={styles.actionText}>Polls</Text>
+      </TouchableOpacity>
 
       <TouchableOpacity
         style={styles.actionButton}

@@ -1,5 +1,5 @@
 import { PAYPAL_CLIENT_ID, PAYPAL_SANDBOX_URL } from '../config/firebase';
-import { CartItem } from '../context/CartContext';
+import { CartItem } from '../context/SavedContext';
 
 interface PayPalOrder {
   orderId: string;

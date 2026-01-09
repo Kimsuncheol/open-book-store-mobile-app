@@ -11,6 +11,7 @@ import { uploadPDF } from "../../services/storageService";
 import { addBook } from "../../services/firestoreService";
 import { spacing, typography, borderRadius } from "../../theme/colors";
 import type { UploadScreenProps } from "../../types/navigation";
+import { useTranslation } from "react-i18next";
 
 type Props = UploadScreenProps;
 
@@ -21,6 +22,7 @@ export const UploadScreen: React.FC<Props> = ({ navigation }) => {
   const [title, setTitle] = useState("");
   const [author, setAuthor] = useState("");
   const [loading, setLoading] = useState(false);
+  const { t } = useTranslation();
 
   const styles = createStyles(colors);
 
@@ -66,18 +68,28 @@ export const UploadScreen: React.FC<Props> = ({ navigation }) => {
       ]);
       return;
     }
-    if (!file || !title) {
-      Alert.alert("Error", "Please select a file and enter a title");
+
+    if (!file || !title || !author) {
+      Alert.alert("Error", "Please select a file and enter title and author");
       return;
     }
+
     setLoading(true);
     try {
+      console.log("Starting upload...");
+      console.log("File:", file);
+      console.log("Title:", title);
+      console.log("Author:", author);
+
       const pdfUrl = await uploadPDF(
         file.uri,
         file.name,
         user?.uid || "anonymous"
       );
-      await addBook({
+
+      console.log("PDF uploaded, URL:", pdfUrl);
+
+      const bookData = {
         title,
         author: author || "Unknown",
         description: "",
@@ -89,14 +101,28 @@ export const UploadScreen: React.FC<Props> = ({ navigation }) => {
         downloads: 0,
         createdAt: new Date(),
         uploadedBy: user?.uid || "",
-      });
+      };
+
+      console.log("Adding book to Firestore:", bookData);
+
+      await addBook(bookData);
+
+      console.log("Book added successfully");
+
       Alert.alert("Success", "Book uploaded!", [
         { text: "OK", onPress: () => navigation.goBack() },
       ]);
     } catch (error) {
-      Alert.alert("Error", "Upload failed");
+      console.error("Upload error:", error);
+      Alert.alert(
+        "Error",
+        `Upload failed: ${
+          error instanceof Error ? error.message : "Unknown error"
+        }`
+      );
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   };
 
   return (
@@ -105,7 +131,7 @@ export const UploadScreen: React.FC<Props> = ({ navigation }) => {
         <TouchableOpacity onPress={() => navigation.goBack()}>
           <Ionicons name="arrow-back" size={24} color={colors.textPrimary} />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Upload Book</Text>
+        <Text style={styles.headerTitle}>{t("upload.title")}</Text>
         <View style={{ width: 24 }} />
       </View>
 
@@ -124,22 +150,23 @@ export const UploadScreen: React.FC<Props> = ({ navigation }) => {
                 size={64}
                 color={colors.textMuted}
               />
-              <Text style={styles.pickText}>Select PDF file</Text>
+              <Text style={styles.pickText}>{t("upload.selectFileText")}</Text>
             </>
           )}
         </TouchableOpacity>
 
         <View style={styles.form}>
           <Input
-            label="Title"
-            placeholder="Book title"
+            label={t("upload.title")}
+            placeholder={t("upload.bookTitle")}
             value={title}
+            style={{ marginBottom: spacing.md }}
             onChangeText={setTitle}
             leftIcon="book-outline"
           />
           <Input
-            label="Author"
-            placeholder="Author name"
+            label={t("upload.author")}
+            placeholder={t("upload.author")}
             value={author}
             onChangeText={setAuthor}
             leftIcon="person-outline"
@@ -147,10 +174,10 @@ export const UploadScreen: React.FC<Props> = ({ navigation }) => {
         </View>
 
         <Button
-          title="Upload"
+          title={t("upload.upload")}
           onPress={handleUpload}
           loading={loading}
-          disabled={!file}
+          disabled={!file || !title || !author}
           style={styles.uploadButton}
         />
       </View>
@@ -166,7 +193,7 @@ const createStyles = (colors: any) =>
       alignItems: "center",
       justifyContent: "space-between",
       padding: spacing.lg,
-      paddingTop: spacing.xxl,
+      paddingTop: spacing.xs,
     },
     headerTitle: { ...typography.h3, color: colors.textPrimary },
     content: { flex: 1, padding: spacing.lg },

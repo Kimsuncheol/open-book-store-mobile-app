@@ -21,11 +21,7 @@ export type DashboardStackParamList = {
   BookReviews: { bookId: string; bookTitle: string };
   Polls: undefined;
   Trending: undefined;
-  // Seller screens (accessible from Dashboard if user is seller)
-  SellerDashboard: undefined;
   Upload: undefined;
-  MyBooks: undefined;
-  SalesReport: undefined;
 };
 
 // Downloads Stack - screens accessible from Downloads tab
@@ -49,8 +45,8 @@ export type AIAskStackParamList = {
 };
 
 // Cart Stack - screens accessible from Cart tab
-export type CartStackParamList = {
-  CartMain: undefined;
+export type SavedStackParamList = {
+  SavedMain: undefined;
 };
 
 // Bottom Tab Navigator
@@ -58,7 +54,7 @@ export type BottomTabParamList = {
   DashboardTab: NavigatorScreenParams<DashboardStackParamList>;
   ProfileTab: NavigatorScreenParams<ProfileStackParamList>;
   AIAskTab: NavigatorScreenParams<AIAskStackParamList>;
-  CartTab: NavigatorScreenParams<CartStackParamList>;
+  CartTab: NavigatorScreenParams<SavedStackParamList>;
 };
 
 // Root Navigator
@@ -125,25 +121,11 @@ export type TrendingScreenProps = CompositeScreenProps<
   BottomTabScreenProps<BottomTabParamList>
 >;
 
-export type SellerDashboardScreenProps = CompositeScreenProps<
-  NativeStackScreenProps<DashboardStackParamList, 'SellerDashboard'>,
-  BottomTabScreenProps<BottomTabParamList>
->;
-
 export type UploadScreenProps = CompositeScreenProps<
   NativeStackScreenProps<DashboardStackParamList, 'Upload'>,
   BottomTabScreenProps<BottomTabParamList>
 >;
 
-export type MyBooksScreenProps = CompositeScreenProps<
-  NativeStackScreenProps<DashboardStackParamList, 'MyBooks'>,
-  BottomTabScreenProps<BottomTabParamList>
->;
-
-export type SalesReportScreenProps = CompositeScreenProps<
-  NativeStackScreenProps<DashboardStackParamList, 'SalesReport'>,
-  BottomTabScreenProps<BottomTabParamList>
->;
 
 // =============================================================================
 // Screen Props - Downloads (now part of Profile Stack)
@@ -192,7 +174,7 @@ export type AIAskScreenProps = CompositeScreenProps<
 // =============================================================================
 // Screen Props - Cart Stack
 // =============================================================================
-export type CartScreenProps = CompositeScreenProps<
-  NativeStackScreenProps<CartStackParamList, 'CartMain'>,
+export type SavedScreenProps = CompositeScreenProps<
+  NativeStackScreenProps<SavedStackParamList, 'SavedMain'>,
   BottomTabScreenProps<BottomTabParamList>
 >;

@@ -13,7 +13,7 @@ type Language = "en" | "ko";
 interface LanguageContextType {
   language: Language;
   changeLanguage: (lang: Language) => Promise<void>;
-  t: (key: string) => string;
+  t: (key: string, options?: any) => string;
 }
 
 const LanguageContext = createContext<LanguageContextType | undefined>(

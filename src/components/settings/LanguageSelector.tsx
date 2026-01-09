@@ -3,15 +3,17 @@ import { View, Text, TouchableOpacity, StyleSheet } from "react-native";
 import { useTheme } from "../../context/ThemeContext";
 import { useLanguage } from "../../context/LanguageContext";
 import { spacing, typography, borderRadius } from "../../theme/colors";
+import { useTranslation } from "react-i18next";
 
 export const LanguageSelector: React.FC = () => {
   const { colors } = useTheme();
   const { language, changeLanguage } = useLanguage();
+  const { t } = useTranslation();
 
   return (
     <View style={styles.container}>
       <Text style={[styles.sectionTitle, { color: colors.textMuted }]}>
-        Language & Region
+        {t("settings.language")}
       </Text>
       <View style={styles.languageSelector}>
         <TouchableOpacity
@@ -32,7 +34,7 @@ export const LanguageSelector: React.FC = () => {
               language === "en" && { color: colors.textLight },
             ]}
           >
-            English
+            {t("settings.english")}
           </Text>
         </TouchableOpacity>
         <TouchableOpacity
@@ -53,7 +55,7 @@ export const LanguageSelector: React.FC = () => {
               language === "ko" && { color: colors.textLight },
             ]}
           >
-            한국어
+            {t("settings.korean")}
           </Text>
         </TouchableOpacity>
       </View>

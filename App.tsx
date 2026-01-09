@@ -6,7 +6,7 @@ import { SafeAreaProvider } from "react-native-safe-area-context";
 import { ThemeProvider, useTheme } from "./src/context/ThemeContext";
 import { LanguageProvider } from "./src/context/LanguageContext";
 import { AuthProvider } from "./src/context/AuthContext";
-import { CartProvider } from "./src/context/CartContext";
+import { SavedProvider } from "./src/context/SavedContext";
 import { ReviewsProvider } from "./src/context/ReviewsContext";
 import { RootNavigator } from "./src/navigation/RootNavigator";
 
@@ -26,11 +26,11 @@ export default function App() {
       <ThemeProvider>
         <LanguageProvider>
           <AuthProvider>
-            <CartProvider>
+            <SavedProvider>
               <ReviewsProvider>
                 <AppContent />
               </ReviewsProvider>
-            </CartProvider>
+            </SavedProvider>
           </AuthProvider>
         </LanguageProvider>
       </ThemeProvider>

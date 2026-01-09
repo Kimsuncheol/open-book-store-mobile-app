@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import {
   View,
   Text,
@@ -8,22 +8,39 @@ import {
   Alert,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { useFocusEffect } from "@react-navigation/native";
 import { Ionicons } from "@expo/vector-icons";
 import { Button } from "../../components/Button";
 import { useTheme } from "../../context/ThemeContext";
+import { useLanguage } from "../../context/LanguageContext";
 import { useAuth } from "../../context/AuthContext";
 import { signOutUser, deleteUserAccount } from "../../services/authService";
+import {
+  getBookCount,
+  getUserDownloadCount,
+  getUserUploadCount,
+} from "../../services/firestoreService";
 import { spacing, typography, borderRadius } from "../../theme/colors";
 import type { ProfileScreenProps } from "../../types/navigation";
 
 export const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
   const { colors } = useTheme();
+  const { t } = useLanguage();
   const { user } = useAuth();
+  const [stats, setStats] = useState({
+    books: 0,
+    downloads: 0,
+    uploads: 0,
+  });
 
   const handleSignOut = () => {
-    Alert.alert("Sign Out", "Are you sure you want to sign out?", [
-      { text: "Cancel", style: "cancel" },
-      { text: "Sign Out", style: "destructive", onPress: () => signOutUser() },
+    Alert.alert(t("auth.signOut"), "Are you sure you want to sign out?", [
+      { text: t("common.cancel"), style: "cancel" },
+      {
+        text: t("auth.signOut"),
+        style: "destructive",
+        onPress: () => signOutUser(),
+      },
     ]);
   };
 
@@ -31,19 +48,42 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
 
   const styles = createStyles(colors);
 
+  const loadStats = useCallback(async () => {
+    try {
+      const [books, downloads, uploads] = await Promise.all([
+        getBookCount(),
+        user ? getUserDownloadCount(user.uid) : Promise.resolve(0),
+        user ? getUserUploadCount(user.uid) : Promise.resolve(0),
+      ]);
+      setStats({ books, downloads, uploads });
+    } catch (error) {
+      console.error("Failed to load profile stats:", error);
+    }
+  }, [user]);
+
+  useEffect(() => {
+    loadStats();
+  }, [loadStats]);
+
+  useFocusEffect(
+    useCallback(() => {
+      loadStats();
+    }, [loadStats])
+  );
+
   const allMenuItems = [
     {
       icon: "cloud-download-outline",
-      label: "My Downloads",
+      label: t("profile.myDownloads"),
       onPress: () => {
         if (!user) {
           Alert.alert(
-            "Sign In Required",
-            "Please sign in to view your downloads",
+            "Sign In Required", // TODO: Add translation
+            "Please sign in to view your downloads", // TODO: Add translation
             [
-              { text: "Cancel", style: "cancel" },
+              { text: t("common.cancel"), style: "cancel" },
               {
-                text: "Sign In",
+                text: t("auth.signIn"),
                 onPress: () =>
                   (navigation.getParent() as any)?.navigate("Auth", {
                     screen: "SignIn",
@@ -58,28 +98,24 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
     },
     {
       icon: "sparkles-outline",
-      label: "Subscription",
+      label: t("navigation.subscription"),
       onPress: () => navigation.navigate("Subscription"),
     },
     {
       icon: "cloud-upload-outline",
-      label: "Upload Book",
+      label: t("profile.uploadBook"),
       onPress: () => {
         if (!user) {
-          Alert.alert(
-            "Sign In Required",
-            "Please sign in to upload books",
-            [
-              { text: "Cancel", style: "cancel" },
-              {
-                text: "Sign In",
-                onPress: () =>
-                  (navigation.getParent() as any)?.navigate("Auth", {
-                    screen: "SignIn",
-                  }),
-              },
-            ]
-          );
+          Alert.alert("Sign In Required", "Please sign in to upload books", [
+            { text: t("common.cancel"), style: "cancel" },
+            {
+              text: t("auth.signIn"),
+              onPress: () =>
+                (navigation.getParent() as any)?.navigate("Auth", {
+                  screen: "SignIn",
+                }),
+            },
+          ]);
           return;
         }
         navigation.navigate("DashboardTab", {
@@ -89,21 +125,21 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
     },
     {
       icon: "settings-outline",
-      label: "Settings",
+      label: t("navigation.settings"),
       onPress: () => navigation.navigate("Settings"),
     },
     {
       icon: "person-outline",
-      label: "Account",
+      label: t("profile.account"),
       onPress: () => {
         if (!user) {
           Alert.alert(
             "Sign In Required",
             "Please sign in to access account settings",
             [
-              { text: "Cancel", style: "cancel" },
+              { text: t("common.cancel"), style: "cancel" },
               {
-                text: "Sign In",
+                text: t("auth.signIn"),
                 onPress: () =>
                   (navigation.getParent() as any)?.navigate("Auth", {
                     screen: "SignIn",
@@ -123,7 +159,7 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
       <ScrollView>
         <View style={styles.header}>
           <View style={{ width: 24 }} />
-          <Text style={styles.headerTitle}>Profile</Text>
+          <Text style={styles.headerTitle}>{t("navigation.profile")}</Text>
           <View style={{ width: 24 }} />
         </View>
 
@@ -137,16 +173,16 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
 
         <View style={styles.statsRow}>
           <View style={styles.statItem}>
-            <Text style={styles.statValue}>12</Text>
-            <Text style={styles.statLabel}>Books</Text>
+            <Text style={styles.statValue}>{stats.books}</Text>
+            <Text style={styles.statLabel}>{t("profile.books")}</Text>
           </View>
           <View style={styles.statItem}>
-            <Text style={styles.statValue}>5</Text>
-            <Text style={styles.statLabel}>Downloads</Text>
+            <Text style={styles.statValue}>{stats.downloads}</Text>
+            <Text style={styles.statLabel}>{t("profile.downloads")}</Text>
           </View>
           <View style={styles.statItem}>
-            <Text style={styles.statValue}>3</Text>
-            <Text style={styles.statLabel}>Purchases</Text>
+            <Text style={styles.statValue}>{stats.uploads}</Text>
+            <Text style={styles.statLabel}>{t("profile.uploads")}</Text>
           </View>
         </View>
 
@@ -173,7 +209,7 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
         </View>
         {user ? (
           <Button
-            title="Sign Out"
+            title={t("auth.signOut")}
             onPress={handleSignOut}
             variant="outline"
             style={styles.signOutButton}
@@ -181,7 +217,7 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
         ) : (
           // navigate to sign in
           <Button
-            title="Sign In"
+            title={t("auth.signIn")}
             onPress={() =>
               (navigation.getParent() as any)?.navigate("Auth", {
                 screen: "SignIn",

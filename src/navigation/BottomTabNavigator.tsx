@@ -4,11 +4,13 @@ import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { useTheme } from "../context/ThemeContext";
+import { useLanguage } from "../context/LanguageContext";
 import type {
   BottomTabParamList,
   DashboardStackParamList,
   ProfileStackParamList,
-  CartStackParamList,
+  SavedStackParamList,
+  AIAskStackParamList,
 } from "../types/navigation";
 
 // Screen imports
@@ -28,22 +30,21 @@ import { SettingsScreen } from "../screens/main/SettingsScreen";
 import { AccountScreen } from "../screens/main/AccountScreen";
 import { SubscriptionScreen } from "../screens/main/SubscriptionScreen";
 import { SubscriptionBillingScreen } from "../screens/main/SubscriptionBillingScreen";
-import { CartScreen } from "../screens/main/CartScreen";
-import { SellerDashboardScreen } from "../screens/seller/SellerDashboardScreen";
+import { SavedScreen } from "../screens/main/SavedScreen";
 import { UploadScreen } from "../screens/main/UploadScreen";
-import { MyBooksScreen } from "../screens/seller/MyBooksScreen";
-import { SalesReportScreen } from "../screens/seller/SalesReportScreen";
 
 const Tab = createBottomTabNavigator<BottomTabParamList>();
 const DashboardStack = createNativeStackNavigator<DashboardStackParamList>();
 const ProfileStack = createNativeStackNavigator<ProfileStackParamList>();
-const CartStack = createNativeStackNavigator<CartStackParamList>();
+const SavedStack = createNativeStackNavigator<SavedStackParamList>();
+const AIAskStack = createNativeStackNavigator<AIAskStackParamList>();
 
 // =============================================================================
 // Dashboard Stack Navigator
 // =============================================================================
 function DashboardStackNavigator() {
   const { colors } = useTheme();
+  const { t } = useLanguage();
 
   return (
     <DashboardStack.Navigator
@@ -66,7 +67,7 @@ function DashboardStackNavigator() {
       <DashboardStack.Screen
         name="BookDetails"
         component={BookDetailsScreen}
-        options={{ headerShown: false }}
+        options={{ title: t("navigation.bookDetails"), headerShown: false }}
       />
       <DashboardStack.Screen
         name="PDFViewer"
@@ -76,53 +77,37 @@ function DashboardStackNavigator() {
       <DashboardStack.Screen
         name="AISummary"
         component={AISummaryScreen}
-        options={{ title: "AI Summary" }}
+        options={{ title: t("navigation.aiSummary") }}
       />
       <DashboardStack.Screen
         name="AIAsk"
         component={AIAskScreen as any}
-        options={{ headerShown: false }}
+        options={{ title: t("navigation.aiAsk"), headerShown: false }}
       />
       <DashboardStack.Screen
         name="WriteReview"
         component={WriteReviewScreen}
-        options={{ title: "Write Review" }}
+        options={{ title: t("navigation.writeReview") }}
       />
       <DashboardStack.Screen
         name="BookReviews"
         component={BookReviewsScreen}
-        options={{ headerShown: false }}
+        options={{ title: t("navigation.bookReviews"), headerShown: false }}
       />
       <DashboardStack.Screen
         name="Polls"
         component={PollsScreen}
-        options={{ headerShown: false }}
+        options={{ title: t("navigation.polls"), headerShown: false }}
       />
       <DashboardStack.Screen
         name="Trending"
         component={TrendingScreen}
-        options={{ headerShown: false }}
-      />
-
-      <DashboardStack.Screen
-        name="SellerDashboard"
-        component={SellerDashboardScreen}
-        options={{ headerShown: false }}
+        options={{ title: t("navigation.trending"), headerShown: false }}
       />
       <DashboardStack.Screen
         name="Upload"
         component={UploadScreen}
-        options={{ headerShown: false }}
-      />
-      <DashboardStack.Screen
-        name="MyBooks"
-        component={MyBooksScreen}
-        options={{ headerShown: false }}
-      />
-      <DashboardStack.Screen
-        name="SalesReport"
-        component={SalesReportScreen}
-        options={{ headerShown: false }}
+        options={{ title: t("navigation.upload"), headerShown: false }}
       />
     </DashboardStack.Navigator>
   );
@@ -133,6 +118,7 @@ function DashboardStackNavigator() {
 // =============================================================================
 function ProfileStackNavigator() {
   const { colors } = useTheme();
+  const { t } = useLanguage();
 
   return (
     <ProfileStack.Navigator
@@ -179,23 +165,46 @@ function ProfileStackNavigator() {
 // =============================================================================
 // Cart Stack Navigator
 // =============================================================================
-function CartStackNavigator() {
+function SavedStackNavigator() {
   const { colors } = useTheme();
 
   return (
-    <CartStack.Navigator
+    <SavedStack.Navigator
       screenOptions={{
         headerStyle: { backgroundColor: colors.background },
         headerTintColor: colors.textPrimary,
         headerShadowVisible: false,
       }}
     >
-      <CartStack.Screen
-        name="CartMain"
-        component={CartScreen}
+      <SavedStack.Screen
+        name="SavedMain"
+        component={SavedScreen}
         options={{ headerShown: false }}
       />
-    </CartStack.Navigator>
+    </SavedStack.Navigator>
+  );
+}
+
+// =============================================================================
+// AI Ask Stack Navigator
+// =============================================================================
+function AIAskStackNavigator() {
+  const { colors } = useTheme();
+
+  return (
+    <AIAskStack.Navigator
+      screenOptions={{
+        headerStyle: { backgroundColor: colors.background },
+        headerTintColor: colors.textPrimary,
+        headerShadowVisible: false,
+      }}
+    >
+      <AIAskStack.Screen
+        name="AIAskMain"
+        component={AIAskScreen as any}
+        options={{ headerShown: false }}
+      />
+    </AIAskStack.Navigator>
   );
 }
 
@@ -204,6 +213,7 @@ function CartStackNavigator() {
 // =============================================================================
 export const BottomTabNavigator: React.FC = () => {
   const { colors } = useTheme();
+  const { t } = useLanguage();
   const insets = useSafeAreaInsets();
 
   return (
@@ -222,6 +232,7 @@ export const BottomTabNavigator: React.FC = () => {
           paddingTop: 8,
         },
         tabBarLabelStyle: {
+          marginTop: 8,
           fontSize: 12,
           fontWeight: "600",
         },
@@ -231,7 +242,7 @@ export const BottomTabNavigator: React.FC = () => {
         name="ProfileTab"
         component={ProfileStackNavigator}
         options={{
-          tabBarLabel: "Profile",
+          tabBarLabel: t("navigation.profile"),
           tabBarIcon: ({ color, size }) => (
             <Ionicons name="person-circle-outline" size={size} color={color} />
           ),
@@ -241,19 +252,33 @@ export const BottomTabNavigator: React.FC = () => {
         name="DashboardTab"
         component={DashboardStackNavigator}
         options={{
-          tabBarLabel: "Home",
+          tabBarLabel: t("navigation.home"),
           tabBarIcon: ({ color, size }) => (
             <Ionicons name="home-outline" size={size} color={color} />
           ),
         }}
       />
       <Tab.Screen
-        name="CartTab"
-        component={CartStackNavigator}
+        name="AIAskTab"
+        component={AIAskStackNavigator}
         options={{
-          tabBarLabel: "Cart",
+          tabBarLabel: t("navigation.aiAsk"),
           tabBarIcon: ({ color, size }) => (
-            <Ionicons name="cart-outline" size={size} color={color} />
+            <Ionicons
+              name="chatbubbles-outline"
+              size={size}
+              color={color}
+            />
+          ),
+        }}
+      />
+      <Tab.Screen
+        name="CartTab"
+        component={SavedStackNavigator}
+        options={{
+          tabBarLabel: t("navigation.saved"),
+          tabBarIcon: ({ color, size }) => (
+            <Ionicons name="bookmark" size={size} color={color} />
           ),
         }}
       />

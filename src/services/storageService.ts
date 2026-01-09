@@ -1,5 +1,5 @@
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
-import * as FileSystem from 'expo-file-system';
+import * as FileSystem from 'expo-file-system/legacy';
 import { storage } from '../config/firebase';
 
 // Get the documents directory path
@@ -16,11 +16,38 @@ export const uploadPDF = async (
   fileName: string,
   userId: string
 ): Promise<string> => {
-  const response = await fetch(uri);
-  const blob = await response.blob();
-  const storageRef = ref(storage, `books/${userId}/${fileName}`);
-  await uploadBytes(storageRef, blob);
-  return getDownloadURL(storageRef);
+  try {
+    console.log('uploadPDF - Starting upload');
+    console.log('uploadPDF - URI:', uri);
+    console.log('uploadPDF - FileName:', fileName);
+    console.log('uploadPDF - UserId:', userId);
+    
+    const response = await fetch(uri);
+    if (!response.ok) {
+      throw new Error(`Failed to fetch file: ${response.status} ${response.statusText}`);
+    }
+    
+    const blob = await response.blob();
+    console.log('uploadPDF - Blob created, size:', blob.size, 'type:', blob.type);
+    
+    const storageRef = ref(storage, `books/${userId}/${fileName}`);
+    console.log('uploadPDF - Storage ref created:', storageRef.fullPath);
+    
+    const uploadResult = await uploadBytes(storageRef, blob);
+    console.log('uploadPDF - Upload complete');
+    
+    const downloadURL = await getDownloadURL(storageRef);
+    console.log('uploadPDF - Download URL obtained:', downloadURL);
+    
+    return downloadURL;
+  } catch (error) {
+    console.error('uploadPDF - Error details:', error);
+    if (error instanceof Error) {
+      console.error('uploadPDF - Error message:', error.message);
+      console.error('uploadPDF - Error stack:', error.stack);
+    }
+    throw error;
+  }
 };
 
 // Download PDF to local storage
