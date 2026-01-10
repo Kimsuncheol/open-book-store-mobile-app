@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from "react";
+import React, { useState, useRef, useEffect, useCallback } from "react";
 import {
   View,
   StyleSheet,
@@ -16,7 +16,7 @@ import { useAuth } from "../../context/AuthContext";
 import { askQuestion } from "../../services/aiService";
 import {
   addAIChatMessage,
-  getAIChatMessages,
+  getAIChatMessagesPage,
   getAIChatRoom,
   getBook,
   BookAnalysis,
@@ -149,6 +149,9 @@ export const AIAskScreen: React.FC<Props> = ({ navigation, route }) => {
   const [showSkeleton, setShowSkeleton] = useState(false);
   const [initialScrollDone, setInitialScrollDone] = useState(false);
   const [skeletonReleased, setSkeletonReleased] = useState(false);
+  const [historyCursor, setHistoryCursor] = useState<any>(null);
+  const [hasMoreHistory, setHasMoreHistory] = useState(true);
+  const [loadingOlder, setLoadingOlder] = useState(false);
   const [bookAnalysis, setBookAnalysis] = useState<BookAnalysis | undefined>(
     undefined
   );
@@ -161,6 +164,8 @@ export const AIAskScreen: React.FC<Props> = ({ navigation, route }) => {
   const autoScrollInProgressRef = useRef(false);
   const initialScrollTriggeredRef = useRef(false);
   const historyLoadingRef = useRef(true);
+  const prependInProgressRef = useRef(false);
+  const pageSize = 20;
 
   const styles = createStyles(colors);
   const skeletonFallback = <SkeletonChatMessages colors={colors} />;
@@ -179,6 +184,9 @@ export const AIAskScreen: React.FC<Props> = ({ navigation, route }) => {
     setHistoryLoading(true);
     setInitialScrollDone(false);
     setSkeletonReleased(false);
+    setHistoryCursor(null);
+    setHasMoreHistory(true);
+    setLoadingOlder(false);
     setBookCoverUrl(route.params?.coverUrl);
     setMessages([
       {
@@ -193,7 +201,11 @@ export const AIAskScreen: React.FC<Props> = ({ navigation, route }) => {
     initialScrollTriggeredRef.current = false;
     const loadMessages = async () => {
       try {
-        const history = await getAIChatMessages(userId, bookId);
+        const { messages: history, nextCursor } = await getAIChatMessagesPage(
+          userId,
+          bookId,
+          pageSize
+        );
         if (!isMounted) return;
         if (history.length > 0) {
           setMessages(
@@ -204,6 +216,10 @@ export const AIAskScreen: React.FC<Props> = ({ navigation, route }) => {
               createdAt: msg.createdAt,
             }))
           );
+          setHistoryCursor(nextCursor);
+          setHasMoreHistory(history.length === pageSize);
+        } else {
+          setHasMoreHistory(false);
         }
       } catch {
         // Ignore load errors to keep the chat usable
@@ -271,6 +287,42 @@ export const AIAskScreen: React.FC<Props> = ({ navigation, route }) => {
     };
     fetchBookAnalysis();
   }, [bookId]);
+
+  const loadOlderMessages = useCallback(async () => {
+    if (!hasMoreHistory || loadingOlder || !historyCursor) return;
+    prependInProgressRef.current = true;
+    setLoadingOlder(true);
+    try {
+      const { messages: older, nextCursor } = await getAIChatMessagesPage(
+        userId,
+        bookId,
+        pageSize,
+        historyCursor
+      );
+      if (older.length > 0) {
+        setMessages((prev) => [
+          ...older.map((msg) => ({
+            id: msg.id,
+            role: msg.role,
+            content: msg.content,
+            createdAt: msg.createdAt,
+          })),
+          ...prev,
+        ]);
+        setHistoryCursor(nextCursor);
+        if (!nextCursor || older.length < pageSize) {
+          setHasMoreHistory(false);
+        }
+      } else {
+        setHasMoreHistory(false);
+      }
+    } catch (error) {
+      console.error("Failed to load older messages:", error);
+    } finally {
+      setLoadingOlder(false);
+      prependInProgressRef.current = false;
+    }
+  }, [bookId, hasMoreHistory, historyCursor, loadingOlder, pageSize, userId]);
 
   const handleSend = async () => {
     if (!input.trim() || loading) return;
@@ -344,7 +396,7 @@ export const AIAskScreen: React.FC<Props> = ({ navigation, route }) => {
 
   const handleContentSizeChange = (_width: number, height: number) => {
     contentHeightRef.current = height;
-    if (historyLoading) return;
+    if (historyLoading || loadingOlder || prependInProgressRef.current) return;
     listRef.current?.scrollToEnd({ animated: true });
     if (!initialScrollTriggeredRef.current) {
       initialScrollTriggeredRef.current = true;
@@ -355,8 +407,17 @@ export const AIAskScreen: React.FC<Props> = ({ navigation, route }) => {
   };
 
   const handleScroll = (event: NativeSyntheticEvent<NativeScrollEvent>) => {
-    if (!autoScrollInProgressRef.current || initialScrollDone) return;
     const { layoutMeasurement, contentOffset, contentSize } = event.nativeEvent;
+    if (
+      !historyLoading &&
+      contentOffset.y <= spacing.sm &&
+      hasMoreHistory &&
+      !loadingOlder
+    ) {
+      loadOlderMessages();
+    }
+
+    if (!autoScrollInProgressRef.current || initialScrollDone) return;
     if (
       layoutMeasurement.height + contentOffset.y >=
       contentSize.height - spacing.sm
@@ -397,6 +458,7 @@ export const AIAskScreen: React.FC<Props> = ({ navigation, route }) => {
             keyExtractor={(item) => item.id}
             keyboardShouldPersistTaps="handled"
             contentContainerStyle={styles.messages}
+            maintainVisibleContentPosition={{ minIndexForVisible: 1 }}
             onLayout={handleListLayout}
             onContentSizeChange={handleContentSizeChange}
             onScroll={handleScroll}

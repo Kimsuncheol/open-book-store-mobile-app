@@ -9,6 +9,8 @@ import {
   orderBy,
   query,
   where,
+  startAfter,
+  limit,
   increment,
   writeBatch,
   deleteField,
@@ -66,6 +68,35 @@ export const getAIChatMessages = async (
       createdAt: asDate(data.createdAt) as Date,
     } as AIChatMessage;
   });
+};
+
+export const getAIChatMessagesPage = async (
+  userId: string,
+  bookId: string,
+  pageSize: number,
+  cursor?: any
+): Promise<{ messages: AIChatMessage[]; nextCursor: any | null }> => {
+  const chatId = getChatDocId(userId, bookId);
+  const baseQuery = query(
+    collection(db, "aiChats", chatId, "messages"),
+    orderBy("createdAt", "desc"),
+    limit(pageSize)
+  );
+  const pageQuery = cursor ? query(baseQuery, startAfter(cursor)) : baseQuery;
+  const snapshot = await getDocs(pageQuery);
+  const messages = snapshot.docs.map((docSnap) => {
+    const data = docSnap.data() as DocumentData;
+    return {
+      id: docSnap.id,
+      userId: data.userId,
+      bookId: data.bookId,
+      role: data.role,
+      content: data.content,
+      createdAt: asDate(data.createdAt) as Date,
+    } as AIChatMessage;
+  });
+  const nextCursor = snapshot.docs[snapshot.docs.length - 1] ?? null;
+  return { messages: messages.reverse(), nextCursor };
 };
 
 export const getAIChatRoom = async (
