@@ -44,7 +44,7 @@ const createStyles = (colors: any) =>
       alignItems: "center",
       paddingVertical: spacing.md,
       paddingHorizontal: spacing.lg,
-      gap: spacing.sm,
+      gap: spacing.md,
     },
     createButtonText: {
       ...typography.body,
