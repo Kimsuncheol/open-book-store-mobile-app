@@ -202,7 +202,7 @@ export default {
     chatListEmptyText: "새 대화를 시작해 책에 대해 물어보세요.",
     chatListAction: "새 대화 시작",
     chatListEmptyPreview: "첫 질문을 시작하세요",
-    newChat: "새 대화",
+    searchPlaceholder: "검색",
     generalTitle: "Open Bookstore",
     now: "방금",
     menuMore: "더보기",
@@ -224,6 +224,7 @@ export default {
     menuDeleteText: "대화와 모든 메시지가 삭제됩니다.",
     menuDeleteAllTitle: "모든 대화를 삭제할까요?",
     menuDeleteAllText: "모든 대화와 메시지가 삭제됩니다.",
+    backToChat: "대화로 돌아가기",
   },
   signIn: {
     title: "로그인",

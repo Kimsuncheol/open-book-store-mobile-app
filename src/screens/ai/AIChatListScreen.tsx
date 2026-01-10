@@ -7,9 +7,9 @@ import {
   TouchableOpacity,
   RefreshControl,
   Alert,
+  PanResponder,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { useFocusEffect } from "@react-navigation/native";
 import { Ionicons } from "@expo/vector-icons";
 import { useTheme } from "../../context/ThemeContext";
 import { useLanguage } from "../../context/LanguageContext";
@@ -17,11 +17,13 @@ import { useAuth } from "../../context/AuthContext";
 import {
   clearAIChatMessages,
   deleteAIChatRoom,
-  deleteAllAIChatRooms,
+  subscribeToAIChatRooms,
   getAIChatRooms,
 } from "../../services/firestoreService";
 import type { AIChatRoom } from "../../services/aiChatService";
 import type { AIChatListScreenProps as Props } from "../../types/navigation";
+import { ChatSidebarSearch } from "../../components/ai/ChatSidebarSearch";
+
 import { ChatRoomListItem } from "../../components/ai/ChatRoomListItem";
 import { SkeletonChatRoomList } from "../../components/ai/SkeletonChatRoomList";
 import { ChatOptionsSheet } from "../../components/ai/ChatOptionsSheet";
@@ -35,10 +37,25 @@ export const AIChatListScreen: React.FC<Props> = ({ navigation }) => {
   const [rooms, setRooms] = useState<AIChatRoom[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
   const [menuVisible, setMenuVisible] = useState(false);
-  const [screenMenuVisible, setScreenMenuVisible] = useState(false);
   const [activeRoom, setActiveRoom] = useState<AIChatRoom | null>(null);
   const styles = createStyles(colors);
+
+  useEffect(() => {
+    const unsubscribe = subscribeToAIChatRooms(
+      userId,
+      (data) => {
+        setRooms(data);
+        setLoading(false);
+      },
+      (error) => {
+        console.error("Failed to subscribe to chat rooms:", error);
+        setLoading(false);
+      }
+    );
+    return () => unsubscribe();
+  }, [userId]);
 
   const loadRooms = useCallback(
     async (withLoading = false) => {
@@ -59,12 +76,6 @@ export const AIChatListScreen: React.FC<Props> = ({ navigation }) => {
   useEffect(() => {
     loadRooms(true);
   }, [loadRooms]);
-
-  useFocusEffect(
-    useCallback(() => {
-      loadRooms();
-    }, [loadRooms])
-  );
 
   const handleRefresh = () => {
     setRefreshing(true);
@@ -93,153 +104,170 @@ export const AIChatListScreen: React.FC<Props> = ({ navigation }) => {
     setMenuVisible(true);
   };
 
+  const handleDeleteRoom = async (room: AIChatRoom) => {
+    setRooms((prev) => prev.filter((item) => item.bookId !== room.bookId));
+    try {
+      await deleteAIChatRoom(userId, room.bookId);
+    } catch (error) {
+      console.error("Failed to delete chat:", error);
+      loadRooms(true);
+    }
+  };
+
+  const panResponder = PanResponder.create({
+    onMoveShouldSetPanResponder: (_evt, gestureState) => {
+      const { dx, dy } = gestureState;
+      return dx < -30 && Math.abs(dy) < 20;
+    },
+    onPanResponderRelease: (_evt, gestureState) => {
+      if (gestureState.dx < -50) {
+        navigation.replace("AIChatRoom", {
+          bookId: "general",
+          title: t("aiAsk.generalTitle"),
+          messageCount: 0,
+        });
+      }
+    },
+  });
+
   const confirmClearRoom = (room: AIChatRoom) => {
-    Alert.alert(
-      t("aiAsk.menuClearTitle"),
-      t("aiAsk.menuClearText"),
-      [
-        { text: t("aiAsk.menuCancel"), style: "cancel" },
-        {
-          text: t("aiAsk.menuClearConfirm"),
-          style: "destructive",
-          onPress: async () => {
-            try {
-              await clearAIChatMessages(userId, room.bookId);
-              await loadRooms(true);
-            } catch (error) {
-              console.error("Failed to clear chat:", error);
-            }
-          },
+    Alert.alert(t("aiAsk.menuClearTitle"), t("aiAsk.menuClearText"), [
+      { text: t("aiAsk.menuCancel"), style: "cancel" },
+      {
+        text: t("aiAsk.menuClearConfirm"),
+        style: "destructive",
+        onPress: async () => {
+          try {
+            await clearAIChatMessages(userId, room.bookId);
+            await loadRooms(true);
+          } catch (error) {
+            console.error("Failed to clear chat:", error);
+          }
         },
-      ]
-    );
+      },
+    ]);
   };
 
   const confirmDeleteRoom = (room: AIChatRoom) => {
-    Alert.alert(
-      t("aiAsk.menuDeleteTitle"),
-      t("aiAsk.menuDeleteText"),
-      [
-        { text: t("aiAsk.menuCancel"), style: "cancel" },
-        {
-          text: t("aiAsk.menuDeleteConfirm"),
-          style: "destructive",
-          onPress: async () => {
-            try {
-              await deleteAIChatRoom(userId, room.bookId);
-              await loadRooms(true);
-            } catch (error) {
-              console.error("Failed to delete chat:", error);
-            }
-          },
+    Alert.alert(t("aiAsk.menuDeleteTitle"), t("aiAsk.menuDeleteText"), [
+      { text: t("aiAsk.menuCancel"), style: "cancel" },
+      {
+        text: t("aiAsk.menuDeleteConfirm"),
+        style: "destructive",
+        onPress: async () => {
+          try {
+            await deleteAIChatRoom(userId, room.bookId);
+            await loadRooms(true);
+          } catch (error) {
+            console.error("Failed to delete chat:", error);
+          }
         },
-      ]
-    );
+      },
+    ]);
   };
 
-  const confirmDeleteAll = () => {
-    Alert.alert(
-      t("aiAsk.menuDeleteAllTitle"),
-      t("aiAsk.menuDeleteAllText"),
-      [
-        { text: t("aiAsk.menuCancel"), style: "cancel" },
-        {
-          text: t("aiAsk.menuDeleteConfirm"),
-          style: "destructive",
-          onPress: async () => {
-            try {
-              await deleteAllAIChatRooms(userId);
-              await loadRooms(true);
-            } catch (error) {
-              console.error("Failed to delete all chats:", error);
-            }
-          },
-        },
-      ]
-    );
-  };
+  const normalizedQuery = searchQuery.trim().toLowerCase();
+  const filteredRooms = normalizedQuery
+    ? rooms.filter((room) => {
+        const titleMatch = room.title?.toLowerCase().includes(normalizedQuery);
+        const previewMatch = room.lastMessage
+          ?.toLowerCase()
+          .includes(normalizedQuery);
+        return Boolean(titleMatch || previewMatch);
+      })
+    : rooms;
+
+  const renderHeader = () => (
+    <View style={styles.header}>
+      <View style={styles.searchRow}>
+        <ChatSidebarSearch
+          value={searchQuery}
+          onChangeText={setSearchQuery}
+          placeholder={t("aiAsk.searchPlaceholder")}
+          onActionPress={handleNewChat}
+          actionLabel={t("aiAsk.newChat")}
+          colors={colors}
+        />
+        <TouchableOpacity
+          style={styles.collapseButton}
+          onPress={() =>
+            navigation.replace("AIChatRoom", {
+              bookId: "general",
+              title: t("aiAsk.generalTitle"),
+              messageCount: 0,
+            })
+          }
+          accessibilityLabel={t("aiAsk.backToChat")}
+        >
+          <Ionicons
+            name="chevron-forward"
+            size={18}
+            color={colors.textPrimary}
+          />
+        </TouchableOpacity>
+      </View>
+
+      {filteredRooms.length > 0 ? (
+        <Text style={styles.sectionLabel}>{t("aiAsk.chatListTitle")}</Text>
+      ) : null}
+    </View>
+  );
+
+  const renderEmptyState = () => (
+    <View style={styles.emptyState}>
+      <Ionicons name="chatbubbles-outline" size={48} color={colors.textMuted} />
+      <Text style={styles.emptyTitle}>{t("aiAsk.chatListEmpty")}</Text>
+      <Text style={styles.emptyText}>{t("aiAsk.chatListEmptyText")}</Text>
+      <TouchableOpacity style={styles.emptyButton} onPress={handleNewChat}>
+        <Ionicons
+          name="sparkles"
+          size={18}
+          color={colors.textLight}
+          style={styles.emptyButtonIcon}
+        />
+        <Text style={styles.emptyButtonText}>{t("aiAsk.chatListAction")}</Text>
+      </TouchableOpacity>
+    </View>
+  );
 
   const renderItem = ({ item }: { item: AIChatRoom }) => (
     <ChatRoomListItem
       room={item}
-      colors={colors}
-      nowLabel={t("aiAsk.now")}
-      emptyPreview={t("aiAsk.chatListEmptyPreview")}
-      menuLabel={t("aiAsk.menuMore")}
       onPress={() => handleOpenRoom(item)}
-      onMenuPress={() => openRoomMenu(item)}
+      onLongPress={() => openRoomMenu(item)}
+      onSwipeDelete={() => handleDeleteRoom(item)}
+      deleteLabel={t("aiAsk.menuDelete")}
+      colors={colors}
     />
   );
 
-  return (
-    <SafeAreaView style={styles.container} edges={["top"]}>
-      <View style={styles.header}>
-        <View>
-          <Text style={styles.title}>{t("aiAsk.chatListTitle")}</Text>
-          <Text style={styles.subtitle}>{t("aiAsk.chatListSubtitle")}</Text>
-        </View>
-        <View style={styles.headerActions}>
-          <TouchableOpacity style={styles.newButton} onPress={handleNewChat}>
-            <Ionicons
-              name="add"
-              size={18}
-              color={colors.textLight}
-              style={styles.newButtonIcon}
-            />
-            <Text style={styles.newButtonText}>{t("aiAsk.newChat")}</Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={styles.menuButton}
-            onPress={() => setScreenMenuVisible(true)}
-            accessibilityLabel={t("aiAsk.menuMore")}
-          >
-            <Ionicons
-              name="ellipsis-horizontal"
-              size={18}
-              color={colors.textPrimary}
-            />
-          </TouchableOpacity>
-        </View>
-      </View>
+  const listEmptyComponent = loading ? (
+    <SkeletonChatRoomList colors={colors} />
+  ) : (
+    renderEmptyState()
+  );
 
-      {loading ? (
-        <SkeletonChatRoomList colors={colors} />
-      ) : rooms.length === 0 ? (
-        <View style={styles.emptyState}>
-          <Ionicons
-            name="chatbubbles-outline"
-            size={48}
-            color={colors.textMuted}
+  return (
+    <SafeAreaView
+      style={styles.container}
+      edges={["top"]}
+      {...panResponder.panHandlers}
+    >
+      <FlatList
+        data={loading ? [] : filteredRooms}
+        keyExtractor={(item) => item.id}
+        contentContainerStyle={styles.list}
+        renderItem={renderItem}
+        ListHeaderComponent={renderHeader}
+        ListEmptyComponent={listEmptyComponent}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={handleRefresh}
+            tintColor={colors.primary}
           />
-          <Text style={styles.emptyTitle}>{t("aiAsk.chatListEmpty")}</Text>
-          <Text style={styles.emptyText}>{t("aiAsk.chatListEmptyText")}</Text>
-          <TouchableOpacity style={styles.emptyButton} onPress={handleNewChat}>
-            <Ionicons
-              name="sparkles"
-              size={18}
-              color={colors.textLight}
-              style={styles.emptyButtonIcon}
-            />
-            <Text style={styles.emptyButtonText}>
-              {t("aiAsk.chatListAction")}
-            </Text>
-          </TouchableOpacity>
-        </View>
-      ) : (
-        <FlatList
-          data={rooms}
-          keyExtractor={(item) => item.id}
-          contentContainerStyle={styles.list}
-          renderItem={renderItem}
-          refreshControl={
-            <RefreshControl
-              refreshing={refreshing}
-              onRefresh={handleRefresh}
-              tintColor={colors.primary}
-            />
-          }
-        />
-      )}
+        }
+      />
 
       <ChatOptionsSheet
         visible={menuVisible}
@@ -282,45 +310,6 @@ export const AIChatListScreen: React.FC<Props> = ({ navigation }) => {
             : []
         }
       />
-
-      <ChatOptionsSheet
-        visible={screenMenuVisible}
-        title={t("aiAsk.menuListTitle")}
-        subtitle={t("aiAsk.menuListSubtitle")}
-        colors={colors}
-        onClose={() => setScreenMenuVisible(false)}
-        actions={[
-          {
-            label: t("aiAsk.menuNewChat"),
-            icon: "add-circle-outline",
-            onPress: () => {
-              setScreenMenuVisible(false);
-              handleNewChat();
-            },
-          },
-          {
-            label: t("aiAsk.menuRefresh"),
-            icon: "refresh",
-            onPress: () => {
-              setScreenMenuVisible(false);
-              loadRooms(true);
-            },
-          },
-          ...(rooms.length > 0
-            ? [
-                {
-                  label: t("aiAsk.menuDeleteAll"),
-                  icon: "trash",
-                  destructive: true,
-                  onPress: () => {
-                    setScreenMenuVisible(false);
-                    confirmDeleteAll();
-                  },
-                },
-              ]
-            : []),
-        ]}
-      />
     </SafeAreaView>
   );
 };
@@ -332,59 +321,40 @@ const createStyles = (colors: any) =>
       backgroundColor: colors.background,
     },
     header: {
-      flexDirection: "row",
-      alignItems: "center",
-      justifyContent: "space-between",
-      paddingHorizontal: spacing.md,
-      paddingVertical: spacing.md,
+      paddingTop: spacing.md,
+      paddingBottom: spacing.md,
     },
-    headerActions: {
+    searchRow: {
       flexDirection: "row",
       alignItems: "center",
     },
-    title: {
-      ...typography.h3,
-      color: colors.textPrimary,
-    },
-    subtitle: {
-      ...typography.caption,
-      color: colors.textMuted,
-      marginTop: spacing.xs,
-    },
-    newButton: {
-      flexDirection: "row",
-      alignItems: "center",
-      backgroundColor: colors.primary,
-      borderRadius: borderRadius.round,
-      paddingHorizontal: spacing.md,
-      paddingVertical: spacing.sm,
-    },
-    newButtonIcon: {
-      marginRight: spacing.xs,
-    },
-    newButtonText: {
-      ...typography.bodySmall,
-      fontWeight: "600",
-      color: colors.textLight,
-    },
-    menuButton: {
-      width: 36,
-      height: 36,
-      borderRadius: 18,
+    collapseButton: {
+      width: 40,
+      height: 40,
+      borderRadius: 20,
       alignItems: "center",
       justifyContent: "center",
       marginLeft: spacing.sm,
       backgroundColor: colors.borderLight,
     },
+
+    sectionLabel: {
+      ...typography.caption,
+      color: colors.textMuted,
+      marginTop: spacing.lg,
+      marginBottom: spacing.sm,
+      textTransform: "uppercase",
+      letterSpacing: 0.6,
+    },
     list: {
-      paddingHorizontal: spacing.md,
-      paddingBottom: spacing.lg,
+      paddingHorizontal: spacing.lg,
+      paddingBottom: spacing.xxl,
     },
     emptyState: {
-      flex: 1,
       alignItems: "center",
       justifyContent: "center",
-      paddingHorizontal: spacing.lg,
+      paddingHorizontal: spacing.md,
+      paddingTop: spacing.xl,
     },
     emptyTitle: {
       ...typography.h3,

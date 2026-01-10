@@ -18,12 +18,7 @@ export const SkeletonChatRoomList: React.FC<SkeletonChatRoomListProps> = ({
     <View style={styles.container}>
       {Array.from({ length: count }).map((_, index) => (
         <View key={`chat-room-skeleton-${index}`} style={styles.item}>
-          <Shimmer style={styles.cover} />
-          <View style={styles.content}>
-            <Shimmer style={styles.title} />
-            <Shimmer style={styles.preview} />
-          </View>
-          <Shimmer style={styles.time} />
+          <Shimmer style={styles.title} />
         </View>
       ))}
     </View>
@@ -33,46 +28,15 @@ export const SkeletonChatRoomList: React.FC<SkeletonChatRoomListProps> = ({
 const createStyles = (colors: any) =>
   StyleSheet.create({
     container: {
-      padding: spacing.md,
+      paddingTop: spacing.sm,
     },
     item: {
-      flexDirection: "row",
-      alignItems: "center",
-      padding: spacing.md,
       marginBottom: spacing.md,
-      borderRadius: borderRadius.lg,
-      backgroundColor: colors.surface,
-      borderWidth: 1,
-      borderColor: colors.border,
-    },
-    cover: {
-      width: 52,
-      height: 70,
-      borderRadius: borderRadius.md,
-      backgroundColor: colors.border,
-      marginRight: spacing.md,
-    },
-    content: {
-      flex: 1,
     },
     title: {
-      height: 12,
-      borderRadius: 6,
+      height: 14,
+      borderRadius: borderRadius.md,
       backgroundColor: colors.border,
-      width: "60%",
-      marginBottom: spacing.sm,
-    },
-    preview: {
-      height: 10,
-      borderRadius: 5,
-      backgroundColor: colors.border,
-      width: "80%",
-    },
-    time: {
-      width: 32,
-      height: 10,
-      borderRadius: 5,
-      backgroundColor: colors.border,
-      marginLeft: spacing.md,
+      width: "75%",
     },
   });

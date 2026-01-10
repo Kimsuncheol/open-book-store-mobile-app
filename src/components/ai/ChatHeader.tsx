@@ -38,11 +38,7 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
           onPress={onMenuPress}
           accessibilityLabel={menuLabel}
         >
-          <Ionicons
-            name="ellipsis-horizontal"
-            size={22}
-            color={colors.textPrimary}
-          />
+          <Ionicons name="menu" size={22} color={colors.textPrimary} />
         </TouchableOpacity>
       ) : (
         <View style={{ width: 24 }} />

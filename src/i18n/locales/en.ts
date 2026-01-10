@@ -199,7 +199,7 @@ export default {
     chatListEmptyText: "Start a new chat and ask anything about a book.",
     chatListAction: "Start a new chat",
     chatListEmptyPreview: "Start your first question",
-    newChat: "New chat",
+    searchPlaceholder: "Search",
     generalTitle: "Open Bookstore",
     now: "Now",
     menuMore: "More options",
@@ -221,6 +221,7 @@ export default {
     menuDeleteText: "This removes the chat and all messages.",
     menuDeleteAllTitle: "Delete all chats?",
     menuDeleteAllText: "This removes every chat and message.",
+    backToChat: "Back to chat",
   },
   signIn: {
     title: "Sign In",

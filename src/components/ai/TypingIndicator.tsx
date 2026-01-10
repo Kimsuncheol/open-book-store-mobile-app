@@ -16,13 +16,7 @@ export const TypingIndicator: React.FC<TypingIndicatorProps> = ({ colors }) => {
       <View style={styles.avatar}>
         <Ionicons name="sparkles" size={16} color={colors.primary} />
       </View>
-      <Shimmer
-        style={[
-          styles.skeletonBubble,
-          styles.skeletonBubbleAi,
-          styles.typingBubble,
-        ]}
-      />
+      <Shimmer style={[styles.skeletonBubble, styles.skeletonBubbleAi]} />
     </View>
   );
 };
@@ -34,7 +28,6 @@ const createStyles = (colors: any) =>
       marginBottom: spacing.md,
     },
     typingRow: {
-      paddingHorizontal: spacing.md,
       marginBottom: spacing.sm,
     },
     avatar: {
@@ -47,14 +40,11 @@ const createStyles = (colors: any) =>
       marginRight: spacing.sm,
     },
     skeletonBubble: {
-      height: 44,
+      height: 28,
       borderRadius: borderRadius.lg,
       backgroundColor: colors.border,
     },
     skeletonBubbleAi: {
-      width: "75%",
-    },
-    typingBubble: {
-      height: 32,
+      width: "80%",
     },
   });

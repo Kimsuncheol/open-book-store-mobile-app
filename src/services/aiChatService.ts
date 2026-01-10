@@ -13,6 +13,7 @@ import {
   writeBatch,
   deleteField,
   DocumentData,
+  onSnapshot,
 } from "firebase/firestore";
 import { db } from "../config/firebase";
 
@@ -111,6 +112,46 @@ export const getAIChatRooms = async (
     (a, b) =>
       (b.lastMessageAt?.getTime() ?? 0) -
       (a.lastMessageAt?.getTime() ?? 0)
+  );
+};
+
+export const subscribeToAIChatRooms = (
+  userId: string,
+  onChange: (rooms: AIChatRoom[]) => void,
+  onError?: (error: Error) => void
+) => {
+  const q = query(collection(db, "aiChats"), where("userId", "==", userId));
+  return onSnapshot(
+    q,
+    (snapshot) => {
+      const rooms = snapshot.docs.map((docSnap) => {
+        const data = docSnap.data() as DocumentData;
+        return {
+          id: docSnap.id,
+          userId: data.userId,
+          bookId: data.bookId,
+          title: data.title ?? "Open Bookstore",
+          coverUrl: data.coverUrl,
+          lastMessage: data.lastMessage,
+          lastRole: data.lastRole,
+          lastMessageAt: asDate(data.lastMessageAt),
+          messageCount: data.messageCount ?? 0,
+        };
+      });
+      const sorted = rooms.sort(
+        (a, b) =>
+          (b.lastMessageAt?.getTime() ?? 0) -
+          (a.lastMessageAt?.getTime() ?? 0)
+      );
+      onChange(sorted);
+    },
+    (error) => {
+      if (onError) {
+        onError(error as Error);
+      } else {
+        console.error("Chat rooms subscription error:", error);
+      }
+    }
   );
 };
 

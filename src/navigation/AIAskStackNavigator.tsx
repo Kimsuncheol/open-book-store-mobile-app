@@ -14,6 +14,7 @@ export function AIAskStackNavigator() {
 
   return (
     <AIAskStack.Navigator
+      initialRouteName="AIChatRoom"
       screenOptions={{
         headerStyle: { backgroundColor: colors.background },
         headerTintColor: colors.textPrimary,

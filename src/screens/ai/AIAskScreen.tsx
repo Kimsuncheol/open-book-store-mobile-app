@@ -5,7 +5,6 @@ import {
   FlatList,
   KeyboardAvoidingView,
   Platform,
-  Alert,
   type LayoutChangeEvent,
   type NativeScrollEvent,
   type NativeSyntheticEvent,
@@ -17,8 +16,6 @@ import { useAuth } from "../../context/AuthContext";
 import { askQuestion } from "../../services/aiService";
 import {
   addAIChatMessage,
-  clearAIChatMessages,
-  deleteAIChatRoom,
   getAIChatMessages,
   getAIChatRoom,
   getBook,
@@ -31,13 +28,68 @@ import { ChatMessage } from "../../components/ai/ChatMessage";
 import { ChatInputBar } from "../../components/ai/ChatInputBar";
 import { TypingIndicator } from "../../components/ai/TypingIndicator";
 import { SkeletonChatMessages } from "../../components/ai/SkeletonChatMessages";
-import { ChatOptionsSheet } from "../../components/ai/ChatOptionsSheet";
+import { DateIndicator } from "../../components/ai/DateIndicator";
 
 interface Message {
   id: string;
-  role: "user" | "assistant";
+  role: "user" | "assistant" | "date" | "typing";
   content: string;
+  createdAt?: Date;
+  date?: string;
 }
+
+const formatDateLabel = (date: Date): string => {
+  const today = new Date();
+  const yesterday = new Date(today);
+  yesterday.setDate(yesterday.getDate() - 1);
+
+  const isToday =
+    date.getDate() === today.getDate() &&
+    date.getMonth() === today.getMonth() &&
+    date.getFullYear() === today.getFullYear();
+
+  const isYesterday =
+    date.getDate() === yesterday.getDate() &&
+    date.getMonth() === yesterday.getMonth() &&
+    date.getFullYear() === yesterday.getFullYear();
+
+  if (isToday) return "Today";
+  if (isYesterday) return "Yesterday";
+
+  const options: Intl.DateTimeFormatOptions = {
+    month: "long",
+    day: "numeric",
+    year: date.getFullYear() !== today.getFullYear() ? "numeric" : undefined,
+  };
+  return date.toLocaleDateString("en-US", options);
+};
+
+const insertDateSeparators = (messages: Message[]): Message[] => {
+  if (messages.length === 0) return messages;
+
+  const result: Message[] = [];
+  let lastDate: string | null = null;
+
+  messages.forEach((msg, index) => {
+    if (msg.createdAt) {
+      const msgDate = new Date(msg.createdAt);
+      const dateLabel = formatDateLabel(msgDate);
+
+      if (dateLabel !== lastDate) {
+        result.push({
+          id: `date-${index}`,
+          role: "date",
+          content: "",
+          date: dateLabel,
+        });
+        lastDate = dateLabel;
+      }
+    }
+    result.push(msg);
+  });
+
+  return result;
+};
 
 const SkeletonGate: React.FC<{ released: boolean; enabled: boolean }> = ({
   released,
@@ -103,7 +155,6 @@ export const AIAskScreen: React.FC<Props> = ({ navigation, route }) => {
   const [bookCoverUrl, setBookCoverUrl] = useState<string | undefined>(
     undefined
   );
-  const [menuVisible, setMenuVisible] = useState(false);
   const listRef = useRef<FlatList>(null);
   const listLayoutHeightRef = useRef(0);
   const contentHeightRef = useRef(0);
@@ -150,6 +201,7 @@ export const AIAskScreen: React.FC<Props> = ({ navigation, route }) => {
               id: msg.id,
               role: msg.role,
               content: msg.content,
+              createdAt: msg.createdAt,
             }))
           );
         }
@@ -227,6 +279,7 @@ export const AIAskScreen: React.FC<Props> = ({ navigation, route }) => {
       id: Date.now().toString(),
       role: "user",
       content: input.trim(),
+      createdAt: new Date(),
     };
     setMessages((prev) => [...prev, userMsg]);
     addAIChatMessage(userId, bookId, "user", userMsg.content, {
@@ -249,6 +302,7 @@ export const AIAskScreen: React.FC<Props> = ({ navigation, route }) => {
         id: (Date.now() + 1).toString(),
         role: "assistant",
         content: response,
+        createdAt: new Date(),
       };
       setMessages((prev) => [...prev, aiMsg]);
       addAIChatMessage(userId, bookId, "assistant", response, {
@@ -260,63 +314,11 @@ export const AIAskScreen: React.FC<Props> = ({ navigation, route }) => {
         id: (Date.now() + 1).toString(),
         role: "assistant",
         content: t("aiAsk.error"),
+        createdAt: new Date(),
       };
       setMessages((prev) => [...prev, errorMsg]);
     }
     setLoading(false);
-  };
-
-  const confirmClearChat = () => {
-    Alert.alert(
-      t("aiAsk.menuClearTitle"),
-      t("aiAsk.menuClearText"),
-      [
-        { text: t("aiAsk.menuCancel"), style: "cancel" },
-        {
-          text: t("aiAsk.menuClearConfirm"),
-          style: "destructive",
-          onPress: async () => {
-            try {
-              await clearAIChatMessages(userId, bookId);
-              setMessages([
-                {
-                  id: "0",
-                  role: "assistant",
-                  content: t("aiAsk.intro", { title }),
-                },
-              ]);
-              setShowSkeleton(false);
-              setSkeletonReleased(true);
-              setInitialScrollDone(true);
-            } catch (error) {
-              console.error("Failed to clear chat:", error);
-            }
-          },
-        },
-      ]
-    );
-  };
-
-  const confirmDeleteChat = () => {
-    Alert.alert(
-      t("aiAsk.menuDeleteTitle"),
-      t("aiAsk.menuDeleteText"),
-      [
-        { text: t("aiAsk.menuCancel"), style: "cancel" },
-        {
-          text: t("aiAsk.menuDeleteConfirm"),
-          style: "destructive",
-          onPress: async () => {
-            try {
-              await deleteAIChatRoom(userId, bookId);
-              navigation.goBack();
-            } catch (error) {
-              console.error("Failed to delete chat:", error);
-            }
-          },
-        },
-      ]
-    );
   };
 
   const maybeCompleteInitialScroll = (contentHeight: number) => {
@@ -374,8 +376,8 @@ export const AIAskScreen: React.FC<Props> = ({ navigation, route }) => {
       >
         <ChatHeader
           onBack={() => navigation.goBack()}
-          onMenuPress={() => setMenuVisible(true)}
-          menuLabel={t("aiAsk.menuMore")}
+          onMenuPress={() => navigation.navigate("AIAskMain")}
+          menuLabel={t("aiAsk.menuListTitle")}
           title={t("aiAsk.title")}
           subtitle={title}
           colors={colors}
@@ -384,7 +386,14 @@ export const AIAskScreen: React.FC<Props> = ({ navigation, route }) => {
         <View style={styles.listContainer}>
           <FlatList
             ref={listRef}
-            data={messages}
+            data={
+              loading
+                ? [
+                    ...insertDateSeparators(messages),
+                    { id: "typing", role: "typing" as const },
+                  ]
+                : insertDateSeparators(messages)
+            }
             keyExtractor={(item) => item.id}
             keyboardShouldPersistTaps="handled"
             contentContainerStyle={styles.messages}
@@ -392,19 +401,20 @@ export const AIAskScreen: React.FC<Props> = ({ navigation, route }) => {
             onContentSizeChange={handleContentSizeChange}
             onScroll={handleScroll}
             scrollEventThrottle={16}
-            renderItem={({ item }) => (
-              <ChatMessage message={item} colors={colors} />
-            )}
+            renderItem={({ item }) => {
+              if (item.role === "typing") {
+                return <TypingIndicator colors={colors} />;
+              }
+              if (item.role === "date") {
+                return <DateIndicator date={item.date || ""} colors={colors} />;
+              }
+              return <ChatMessage message={item} colors={colors} />;
+            }}
           />
           <React.Suspense fallback={skeletonFallback}>
-            <SkeletonGate
-              released={skeletonReleased}
-              enabled={showSkeleton}
-            />
+            <SkeletonGate released={skeletonReleased} enabled={showSkeleton} />
           </React.Suspense>
         </View>
-
-        {loading && <TypingIndicator colors={colors} />}
 
         <ChatInputBar
           value={input}
@@ -413,33 +423,6 @@ export const AIAskScreen: React.FC<Props> = ({ navigation, route }) => {
           placeholder={t("aiAsk.placeholder")}
           loading={loading}
           colors={colors}
-        />
-
-        <ChatOptionsSheet
-          visible={menuVisible}
-          title={title}
-          subtitle={t("aiAsk.menuChatActions")}
-          colors={colors}
-          onClose={() => setMenuVisible(false)}
-          actions={[
-            {
-              label: t("aiAsk.menuClear"),
-              icon: "trash-outline",
-              onPress: () => {
-                setMenuVisible(false);
-                confirmClearChat();
-              },
-            },
-            {
-              label: t("aiAsk.menuDelete"),
-              icon: "close-circle-outline",
-              destructive: true,
-              onPress: () => {
-                setMenuVisible(false);
-                confirmDeleteChat();
-              },
-            },
-          ]}
         />
       </KeyboardAvoidingView>
     </SafeAreaView>
