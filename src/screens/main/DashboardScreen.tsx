@@ -5,7 +5,6 @@ import {
   StyleSheet,
   ScrollView,
   TouchableOpacity,
-  FlatList,
   Alert,
   Image,
 } from "react-native";
@@ -29,9 +28,11 @@ import { spacing, typography } from "../../theme/colors";
 import type { DashboardScreenProps } from "../../types/navigation";
 import { useTranslation } from "react-i18next";
 import { BookDetailsBottomSheet } from "./BookDetailsBottomSheet";
-import { Shimmer } from "../../components/Shimmer";
 import { SearchBar } from "../../components/dashboard/SearchBar";
 import { AiSearchBottomSheet } from "../../components/dashboard/AiSearchBottomSheet";
+import { BookCard } from "../../components/dashboard/BookCard";
+import { BookSection } from "../../components/dashboard/BookSection";
+import { SkeletonBookSection } from "../../components/dashboard/SkeletonBookSection";
 
 type Props = DashboardScreenProps;
 
@@ -161,38 +162,14 @@ export const DashboardScreen: React.FC<Props> = ({ navigation }) => {
     const isSaved = savedItems.some((saved) => saved.book.id === item.id);
 
     return (
-      <TouchableOpacity
-        style={styles.bookCard}
+      <BookCard
+        book={item}
         onPress={() => openBookSheet(item)}
-      >
-        <View style={styles.bookCover}>
-          <View style={styles.bookCoverAccent} />
-          <Ionicons name="book-outline" size={40} color={SCRIBD_INK} />
-        </View>
-        <Text style={styles.bookTitle} numberOfLines={2}>
-          {item.title}
-        </Text>
-        <Text style={styles.bookAuthor} numberOfLines={1}>
-          {item.author}
-        </Text>
-        <View style={styles.bookMeta}>
-          <Ionicons name="star" size={12} color={SCRIBD_ACCENT} />
-          <Text style={styles.rating}>{item.rating}</Text>
-          <TouchableOpacity
-            style={[
-              styles.saveButton,
-              isSaved && { backgroundColor: "rgba(227, 18, 38, 0.12)" },
-            ]}
-            onPress={() => handleSaveBook(item)}
-          >
-            <Ionicons
-              name={isSaved ? "bookmark" : "bookmark-outline"}
-              size={14}
-              color={SCRIBD_ACCENT}
-            />
-          </TouchableOpacity>
-        </View>
-      </TouchableOpacity>
+        onSave={() => handleSaveBook(item)}
+        isSaved={isSaved}
+        isSaving={savingId === item.id}
+        colors={colors}
+      />
     );
   };
 
@@ -269,167 +246,62 @@ export const DashboardScreen: React.FC<Props> = ({ navigation }) => {
         )}
 
         {loading ? (
-          <View style={styles.section}>
-            <View style={styles.sectionHeader}>
-              <Shimmer style={styles.skeletonSectionTitle} />
-              <Shimmer style={styles.skeletonSectionLink} />
-            </View>
-            <View style={styles.skeletonRow}>
-              {Array.from({ length: 3 }).map((_, index) => (
-                <View
-                  key={`featured-skeleton-${index}`}
-                  style={styles.skeletonCard}
-                >
-                  <Shimmer style={styles.skeletonCover} />
-                  <Shimmer style={styles.skeletonLine} />
-                  <Shimmer style={styles.skeletonLineSmall} />
-                </View>
-              ))}
-            </View>
-          </View>
+          <SkeletonBookSection colors={colors} cardCount={3} />
         ) : (
           <>
-            <View style={styles.section}>
-              <View style={styles.sectionHeader}>
-                <Text style={styles.sectionTitle}>
-                  {t("dashboard.featuredForYou")}
-                </Text>
-                <TouchableOpacity
-                  onPress={() => navigation.navigate("BookList", {})}
-                >
-                  <Text style={styles.sectionLink}>{t("dashboard.more")}</Text>
-                </TouchableOpacity>
-              </View>
-              <FlatList
-                horizontal
-                data={books}
-                renderItem={renderBook}
-                keyExtractor={(item) => item.id}
-                contentContainerStyle={styles.bookList}
-                showsHorizontalScrollIndicator={false}
-              />
-            </View>
+            <BookSection
+              title={t("dashboard.featuredForYou")}
+              data={books}
+              renderItem={renderBook}
+              onMorePress={() => navigation.navigate("BookList", {})}
+              moreLabel={t("dashboard.more")}
+              colors={colors}
+            />
 
-            <View style={styles.section}>
-              <View style={styles.sectionHeader}>
-                <Text style={styles.sectionTitle}>
-                  {t("dashboard.trendingNow")}
-                </Text>
-                <TouchableOpacity
-                  onPress={() => navigation.navigate("BookList", {})}
-                >
-                  <Text style={styles.sectionLink}>{t("dashboard.more")}</Text>
-                </TouchableOpacity>
-              </View>
-              <FlatList
-                horizontal
-                data={[...books].reverse()}
-                renderItem={renderBook}
-                keyExtractor={(item) => item.id}
-                contentContainerStyle={styles.bookList}
-                showsHorizontalScrollIndicator={false}
-              />
-            </View>
+            <BookSection
+              title={t("dashboard.trendingNow")}
+              data={[...books].reverse()}
+              renderItem={renderBook}
+              onMorePress={() => navigation.navigate("BookList", {})}
+              moreLabel={t("dashboard.more")}
+              colors={colors}
+            />
 
-            {feedItems.length > 0 && (
-              <View style={styles.section}>
-                <View style={styles.sectionHeader}>
-                  <Text style={styles.sectionTitle}>
-                    {t("dashboard.feed.title")}
-                  </Text>
-                  <TouchableOpacity
-                    onPress={() => navigation.navigate("BookList", {})}
-                  >
-                    <Text style={styles.sectionLink}>
-                      {t("dashboard.more")}
-                    </Text>
-                  </TouchableOpacity>
-                </View>
-                <FlatList
-                  horizontal
-                  data={feedItems}
-                  renderItem={renderBook}
-                  keyExtractor={(item) => item.id}
-                  contentContainerStyle={styles.bookList}
-                  showsHorizontalScrollIndicator={false}
-                />
-              </View>
-            )}
+            <BookSection
+              title={t("dashboard.feed.title")}
+              data={feedItems}
+              renderItem={renderBook}
+              onMorePress={() => navigation.navigate("BookList", {})}
+              moreLabel={t("dashboard.more")}
+              colors={colors}
+            />
 
-            {newReleaseItems.length > 0 && (
-              <View style={styles.section}>
-                <View style={styles.sectionHeader}>
-                  <Text style={styles.sectionTitle}>
-                    {t("dashboard.newReleases")}
-                  </Text>
-                  <TouchableOpacity
-                    onPress={() => navigation.navigate("BookList", {})}
-                  >
-                    <Text style={styles.sectionLink}>
-                      {t("dashboard.more")}
-                    </Text>
-                  </TouchableOpacity>
-                </View>
-                <FlatList
-                  horizontal
-                  data={newReleaseItems}
-                  renderItem={renderBook}
-                  keyExtractor={(item) => item.id}
-                  contentContainerStyle={styles.bookList}
-                  showsHorizontalScrollIndicator={false}
-                />
-              </View>
-            )}
+            <BookSection
+              title={t("dashboard.newReleases")}
+              data={newReleaseItems}
+              renderItem={renderBook}
+              onMorePress={() => navigation.navigate("BookList", {})}
+              moreLabel={t("dashboard.more")}
+              colors={colors}
+            />
 
-            {moreItems.length > 0 && (
-              <View style={styles.section}>
-                <View style={styles.sectionHeader}>
-                  <Text style={styles.sectionTitle}>
-                    {t("dashboard.moreForYou")}
-                  </Text>
-                  <TouchableOpacity
-                    onPress={() => navigation.navigate("BookList", {})}
-                  >
-                    <Text style={styles.sectionLink}>
-                      {t("dashboard.more")}
-                    </Text>
-                  </TouchableOpacity>
-                </View>
-                <FlatList
-                  horizontal
-                  data={moreItems}
-                  renderItem={renderBook}
-                  keyExtractor={(item) => item.id}
-                  contentContainerStyle={styles.bookList}
-                  showsHorizontalScrollIndicator={false}
-                />
-              </View>
-            )}
+            <BookSection
+              title={t("dashboard.moreForYou")}
+              data={moreItems}
+              renderItem={renderBook}
+              onMorePress={() => navigation.navigate("BookList", {})}
+              moreLabel={t("dashboard.more")}
+              colors={colors}
+            />
 
-            {topRatedItems.length > 0 && (
-              <View style={styles.section}>
-                <View style={styles.sectionHeader}>
-                  <Text style={styles.sectionTitle}>
-                    {t("dashboard.topRated")}
-                  </Text>
-                  <TouchableOpacity
-                    onPress={() => navigation.navigate("BookList", {})}
-                  >
-                    <Text style={styles.sectionLink}>
-                      {t("dashboard.more")}
-                    </Text>
-                  </TouchableOpacity>
-                </View>
-                <FlatList
-                  horizontal
-                  data={topRatedItems}
-                  renderItem={renderBook}
-                  keyExtractor={(item) => item.id}
-                  contentContainerStyle={styles.bookList}
-                  showsHorizontalScrollIndicator={false}
-                />
-              </View>
-            )}
+            <BookSection
+              title={t("dashboard.topRated")}
+              data={topRatedItems}
+              renderItem={renderBook}
+              onMorePress={() => navigation.navigate("BookList", {})}
+              moreLabel={t("dashboard.more")}
+              colors={colors}
+            />
           </>
         )}
       </ScrollView>
@@ -538,124 +410,6 @@ const createStyles = (colors: any) =>
       fontWeight: "700",
       fontSize: 14,
       letterSpacing: 0.4,
-    },
-    sectionHeader: {
-      paddingHorizontal: spacing.lg,
-      flexDirection: "row",
-      alignItems: "center",
-      paddingVertical: spacing.md,
-      justifyContent: "space-between",
-    },
-    section: { paddingVertical: spacing.lg },
-    sectionTitle: {
-      fontSize: 18,
-      fontWeight: "700",
-      color: colors.textPrimary,
-      fontFamily: "Georgia",
-    },
-    sectionLink: {
-      ...typography.bodySmall,
-      color: SCRIBD_ACCENT,
-      fontWeight: "600",
-    },
-    bookList: {
-      paddingLeft: spacing.lg,
-      paddingRight: spacing.lg,
-    },
-    skeletonSectionTitle: {
-      width: 140,
-      height: 18,
-      borderRadius: 6,
-      backgroundColor: colors.border,
-    },
-    skeletonSectionLink: {
-      width: 48,
-      height: 14,
-      borderRadius: 6,
-      backgroundColor: colors.border,
-    },
-    skeletonRow: {
-      flexDirection: "row",
-      gap: spacing.md,
-      paddingHorizontal: spacing.lg,
-      paddingBottom: spacing.sm,
-    },
-    skeletonCard: {
-      width: 150,
-      borderRadius: 18,
-      backgroundColor: colors.surface,
-      padding: spacing.md,
-      gap: spacing.sm,
-    },
-    skeletonCover: {
-      width: "100%",
-      height: 140,
-      borderRadius: 14,
-      backgroundColor: colors.border,
-    },
-    skeletonLine: {
-      width: "90%",
-      height: 12,
-      borderRadius: 6,
-      backgroundColor: colors.border,
-    },
-    skeletonLineSmall: {
-      width: "60%",
-      height: 10,
-      borderRadius: 6,
-      backgroundColor: colors.border,
-    },
-    bookCard: {
-      width: 150,
-      marginRight: spacing.md,
-    },
-    bookCover: {
-      width: 150,
-      height: 200,
-      backgroundColor: SCRIBD_PAPER,
-      borderRadius: 18,
-      alignItems: "center",
-      justifyContent: "center",
-      borderWidth: 1,
-      borderColor: colors.border,
-      overflow: "hidden",
-    },
-    bookCoverAccent: {
-      position: "absolute",
-      bottom: -40,
-      right: -50,
-      width: 120,
-      height: 120,
-      borderRadius: 60,
-      backgroundColor: SCRIBD_ACCENT,
-      opacity: 0.12,
-    },
-    bookTitle: {
-      ...typography.bodySmall,
-      color: colors.textPrimary,
-      fontWeight: "600",
-      marginTop: spacing.sm,
-    },
-    bookAuthor: { ...typography.caption, color: colors.textSecondary },
-    bookMeta: {
-      flexDirection: "row",
-      alignItems: "center",
-      marginTop: spacing.xs,
-    },
-    rating: {
-      ...typography.caption,
-      color: colors.textSecondary,
-      marginLeft: 2,
-      marginRight: spacing.sm,
-    },
-    saveButton: {
-      marginLeft: "auto",
-      width: 28,
-      height: 28,
-      borderRadius: 14,
-      alignItems: "center",
-      justifyContent: "center",
-      backgroundColor: "rgba(227, 18, 38, 0.08)",
     },
     trendingCard: {
       backgroundColor: SCRIBD_PAPER,

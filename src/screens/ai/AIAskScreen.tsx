@@ -9,6 +9,9 @@ import {
   KeyboardAvoidingView,
   Platform,
   useWindowDimensions,
+  type LayoutChangeEvent,
+  type NativeScrollEvent,
+  type NativeSyntheticEvent,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
@@ -32,6 +35,30 @@ interface Message {
   content: string;
 }
 
+const SkeletonGate: React.FC<{ released: boolean }> = ({ released }) => {
+  const promiseRef = useRef<Promise<void> | null>(null);
+  const resolveRef = useRef<(() => void) | null>(null);
+
+  useEffect(() => {
+    if (released && resolveRef.current) {
+      resolveRef.current();
+      resolveRef.current = null;
+      promiseRef.current = null;
+    }
+  }, [released]);
+
+  if (!released) {
+    if (!promiseRef.current) {
+      promiseRef.current = new Promise<void>((resolve) => {
+        resolveRef.current = resolve;
+      });
+    }
+    throw promiseRef.current;
+  }
+
+  return null;
+};
+
 export const AIAskScreen: React.FC<Props> = ({ navigation, route }) => {
   const bookId = route.params?.bookId || "general";
   const title = route.params?.title || "Open Bookstore";
@@ -49,15 +76,51 @@ export const AIAskScreen: React.FC<Props> = ({ navigation, route }) => {
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const [historyLoading, setHistoryLoading] = useState(true);
+  const [initialScrollDone, setInitialScrollDone] = useState(false);
+  const [skeletonReleased, setSkeletonReleased] = useState(false);
   const [bookAnalysis, setBookAnalysis] = useState<BookAnalysis | undefined>(
     undefined
   );
   const listRef = useRef<FlatList>(null);
+  const listLayoutHeightRef = useRef(0);
+  const contentHeightRef = useRef(0);
+  const autoScrollInProgressRef = useRef(false);
+  const initialScrollTriggeredRef = useRef(false);
 
   const styles = createStyles(colors);
+  const skeletonFallback = (
+    <View style={styles.skeletonOverlay}>
+      <View style={styles.messages}>
+        <View style={styles.msgRow}>
+          <Shimmer style={styles.avatarSkeleton} />
+          <Shimmer
+            style={[styles.skeletonBubble, styles.skeletonBubbleAi]}
+          />
+        </View>
+        <View style={[styles.msgRow, styles.msgRowUser]}>
+          <Shimmer
+            style={[styles.skeletonBubble, styles.skeletonBubbleUser]}
+          />
+        </View>
+        <View style={styles.msgRow}>
+          <Shimmer style={styles.avatarSkeleton} />
+          <Shimmer
+            style={[styles.skeletonBubble, styles.skeletonBubbleAi]}
+          />
+        </View>
+      </View>
+    </View>
+  );
 
   useEffect(() => {
     let isMounted = true;
+    setHistoryLoading(true);
+    setInitialScrollDone(false);
+    setSkeletonReleased(false);
+    listLayoutHeightRef.current = 0;
+    contentHeightRef.current = 0;
+    autoScrollInProgressRef.current = false;
+    initialScrollTriggeredRef.current = false;
     const loadMessages = async () => {
       try {
         const history = await getAIChatMessages(userId, bookId);
@@ -82,6 +145,14 @@ export const AIAskScreen: React.FC<Props> = ({ navigation, route }) => {
       isMounted = false;
     };
   }, [bookId, userId]);
+
+  useEffect(() => {
+    if (historyLoading || !initialScrollDone || skeletonReleased) return;
+    const timer = setTimeout(() => {
+      setSkeletonReleased(true);
+    }, 500);
+    return () => clearTimeout(timer);
+  }, [historyLoading, initialScrollDone, skeletonReleased]);
 
   // Fetch book analysis for context
   useEffect(() => {
@@ -143,6 +214,54 @@ export const AIAskScreen: React.FC<Props> = ({ navigation, route }) => {
     setLoading(false);
   };
 
+  const maybeCompleteInitialScroll = (contentHeight: number) => {
+    const layoutHeight = listLayoutHeightRef.current;
+    if (layoutHeight > 0 && contentHeight <= layoutHeight + spacing.sm) {
+      autoScrollInProgressRef.current = false;
+      setInitialScrollDone(true);
+      return true;
+    }
+    return false;
+  };
+
+  const handleListLayout = (event: LayoutChangeEvent) => {
+    listLayoutHeightRef.current = event.nativeEvent.layout.height;
+    if (
+      !historyLoading &&
+      initialScrollTriggeredRef.current &&
+      !initialScrollDone
+    ) {
+      maybeCompleteInitialScroll(contentHeightRef.current);
+    }
+  };
+
+  const handleContentSizeChange = (_width: number, height: number) => {
+    contentHeightRef.current = height;
+    if (historyLoading) return;
+    listRef.current?.scrollToEnd({ animated: true });
+    if (!initialScrollTriggeredRef.current) {
+      initialScrollTriggeredRef.current = true;
+      if (!maybeCompleteInitialScroll(height)) {
+        autoScrollInProgressRef.current = true;
+      }
+    }
+  };
+
+  const handleScroll = (
+    event: NativeSyntheticEvent<NativeScrollEvent>
+  ) => {
+    if (!autoScrollInProgressRef.current || initialScrollDone) return;
+    const { layoutMeasurement, contentOffset, contentSize } =
+      event.nativeEvent;
+    if (
+      layoutMeasurement.height + contentOffset.y >=
+      contentSize.height - spacing.sm
+    ) {
+      autoScrollInProgressRef.current = false;
+      setInitialScrollDone(true);
+    }
+  };
+
   // Return the main view - don't include bottom edge since tab navigator handles it
   return (
     <SafeAreaView style={styles.container} edges={["top"]}>
@@ -164,46 +283,18 @@ export const AIAskScreen: React.FC<Props> = ({ navigation, route }) => {
           <View style={{ width: 24 }} />
         </View>
 
-        <FlatList
-          ref={listRef}
-          data={
-            historyLoading && messages.length === 1
-              ? [
-                  { id: "s-1", role: "assistant", content: "", skeleton: true },
-                  { id: "s-2", role: "user", content: "", skeleton: true },
-                  { id: "s-3", role: "assistant", content: "", skeleton: true },
-                ]
-              : messages
-          }
-          keyExtractor={(item) => item.id}
-          keyboardShouldPersistTaps="handled"
-          contentContainerStyle={styles.messages}
-          onContentSizeChange={() => listRef.current?.scrollToEnd()}
-          renderItem={({ item }) => {
-            if ((item as any).skeleton) {
-              return (
-                <View
-                  style={[
-                    styles.msgRow,
-                    item.role === "user" && styles.msgRowUser,
-                  ]}
-                >
-                  {item.role === "assistant" && (
-                    <Shimmer style={styles.avatarSkeleton} />
-                  )}
-                  <Shimmer
-                    style={[
-                      styles.skeletonBubble,
-                      item.role === "user"
-                        ? styles.skeletonBubbleUser
-                        : styles.skeletonBubbleAi,
-                    ]}
-                  />
-                </View>
-              );
-            }
-
-            return (
+        <View style={styles.listContainer}>
+          <FlatList
+            ref={listRef}
+            data={messages}
+            keyExtractor={(item) => item.id}
+            keyboardShouldPersistTaps="handled"
+            contentContainerStyle={styles.messages}
+            onLayout={handleListLayout}
+            onContentSizeChange={handleContentSizeChange}
+            onScroll={handleScroll}
+            scrollEventThrottle={16}
+            renderItem={({ item }) => (
               <View
                 style={[
                   styles.msgRow,
@@ -235,9 +326,12 @@ export const AIAskScreen: React.FC<Props> = ({ navigation, route }) => {
                   </Text>
                 </View>
               </View>
-            );
-          }}
-        />
+            )}
+          />
+          <React.Suspense fallback={skeletonFallback}>
+            <SkeletonGate released={skeletonReleased} />
+          </React.Suspense>
+        </View>
 
         {/* Typing indicator */}
         {loading && (
@@ -299,6 +393,7 @@ const createStyles = (colors: any) =>
     headerInfo: { flex: 1, marginLeft: spacing.md },
     headerTitle: { ...typography.h3, color: colors.textPrimary },
     headerSubtitle: { ...typography.caption, color: colors.textMuted },
+    listContainer: { flex: 1 },
     messages: { padding: spacing.md },
     msgRow: { flexDirection: "row", marginBottom: spacing.md },
     msgRowUser: { justifyContent: "flex-end" },
@@ -344,6 +439,11 @@ const createStyles = (colors: any) =>
     },
     typingBubble: {
       height: 32,
+    },
+    skeletonOverlay: {
+      ...StyleSheet.absoluteFillObject,
+      backgroundColor: colors.background,
+      zIndex: 1,
     },
     inputBar: {
       flexDirection: "row",

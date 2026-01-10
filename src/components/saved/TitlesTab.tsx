@@ -3,7 +3,6 @@ import {
   View,
   Text,
   StyleSheet,
-  ActivityIndicator,
   TouchableOpacity,
   TextInput,
 } from "react-native";
@@ -75,7 +74,9 @@ export const TitlesTab: React.FC<TitlesTabProps> = ({
             returnKeyType="search"
           />
           {aiSearching ? (
-            <ActivityIndicator size="small" color={PRIMARY} />
+            <View style={styles.aiSearchingIndicator}>
+              <Shimmer style={styles.searchingShimmer} />
+            </View>
           ) : (
             <TouchableOpacity
               onPress={onAIModeToggle}
@@ -147,13 +148,7 @@ export const TitlesTab: React.FC<TitlesTabProps> = ({
           </TouchableOpacity>
         </View>
       ) : (
-        <React.Suspense
-          fallback={
-            <View style={styles.listFallback}>
-              <ActivityIndicator size="small" color={PRIMARY} />
-            </View>
-          }
-        >
+        <React.Suspense fallback={<View style={styles.listFallback} />}>
           <SavedList
             data={filteredItems}
             renderItem={renderSavedItem}
@@ -278,5 +273,14 @@ const createStyles = (colors: any, PRIMARY: string) =>
       color: "#FFFFFF",
       fontSize: 14,
       fontWeight: "600",
+    },
+    aiSearchingIndicator: {
+      padding: 8,
+    },
+    searchingShimmer: {
+      width: 18,
+      height: 18,
+      borderRadius: 9,
+      backgroundColor: PRIMARY,
     },
   });

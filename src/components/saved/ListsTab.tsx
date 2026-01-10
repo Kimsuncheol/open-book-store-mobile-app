@@ -5,8 +5,6 @@ import {
   StyleSheet,
   TouchableOpacity,
   FlatList,
-  ActivityIndicator,
-  Image,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useTheme } from "../../context/ThemeContext";
@@ -15,6 +13,8 @@ import { useAuth } from "../../context/AuthContext";
 import { getUserLists, getListWithBooks } from "../../services/listsService";
 import { BookListWithBooks } from "../../types/lists";
 import { CreateListModal } from "../modals/CreateListModal";
+import { CreateListButton } from "./CreateListButton";
+import { Shimmer } from "../Shimmer";
 import { spacing, borderRadius, typography } from "../../theme/colors";
 
 export const ListsTab: React.FC = () => {
@@ -113,28 +113,31 @@ export const ListsTab: React.FC = () => {
 
   return (
     <View style={styles.container}>
-      {/* Create a List Button */}
-      <TouchableOpacity
-        style={styles.createButton}
+      <CreateListButton
         onPress={() => setShowCreateModal(true)}
-      >
-        <Ionicons name="add-outline" size={20} color={colors.textPrimary} />
-        <Text style={styles.createButtonText}>{t("lists.createAList")}</Text>
-      </TouchableOpacity>
+        label={t("lists.createAList")}
+        colors={colors}
+      />
 
       {loading ? (
-        <View style={styles.loadingContainer}>
-          <ActivityIndicator color={colors.primary} />
-        </View>
-      ) : lists.length === 0 ? (
-        <View style={styles.emptyContainer}>
-          <Text style={styles.listCountText}>0 List</Text>
+        <View style={styles.list}>
+          {[1, 2, 3].map((index) => (
+            <View key={`list-skeleton-${index}`} style={styles.listItem}>
+              {/* Book Thumbnails Skeleton */}
+              <View style={styles.bookThumbnailsContainer}>
+                <Shimmer style={styles.skeletonBookCover} />
+                <Shimmer style={styles.skeletonBookCover} />
+              </View>
+              {/* List Info Skeleton */}
+              <View style={styles.listInfoContainer}>
+                <Shimmer style={styles.skeletonListName} />
+                <Shimmer style={styles.skeletonListCount} />
+              </View>
+            </View>
+          ))}
         </View>
       ) : (
         <>
-          <Text style={styles.listCountText}>
-            {lists.length} {lists.length === 1 ? "List" : "Lists"}
-          </Text>
           <FlatList
             data={lists}
             renderItem={renderListItem}
@@ -161,19 +164,10 @@ const createStyles = (colors: any) =>
       flex: 1,
       backgroundColor: colors.background,
     },
-    createButton: {
-      flexDirection: "row",
-      alignItems: "center",
-      paddingVertical: spacing.md,
+    list: {
       paddingHorizontal: spacing.lg,
-      gap: spacing.xs,
-      borderBottomWidth: 1,
-      borderBottomColor: colors.border,
-    },
-    createButtonText: {
-      ...typography.body,
-      color: colors.textPrimary,
-      fontWeight: "600",
+      paddingTop: spacing.md,
+      gap: spacing.md,
     },
     listCountText: {
       paddingHorizontal: spacing.lg,
@@ -181,11 +175,6 @@ const createStyles = (colors: any) =>
       ...typography.body,
       color: colors.textSecondary,
       fontSize: 14,
-    },
-    loadingContainer: {
-      flex: 1,
-      alignItems: "center",
-      justifyContent: "center",
     },
     emptyContainer: {
       flex: 1,
@@ -263,5 +252,23 @@ const createStyles = (colors: any) =>
     placeholderText: {
       fontSize: 14,
       textAlign: "center",
+    },
+    skeletonBookCover: {
+      width: 80,
+      height: 100,
+      borderRadius: borderRadius.sm,
+      backgroundColor: colors.border,
+    },
+    skeletonListName: {
+      height: 16,
+      width: "70%",
+      borderRadius: 6,
+      backgroundColor: colors.border,
+    },
+    skeletonListCount: {
+      height: 14,
+      width: "40%",
+      borderRadius: 6,
+      backgroundColor: colors.border,
     },
   });

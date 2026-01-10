@@ -5,7 +5,6 @@ import {
   StyleSheet,
   FlatList,
   TouchableOpacity,
-  ActivityIndicator,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useTheme } from "../../context/ThemeContext";
@@ -13,6 +12,7 @@ import { useLanguage } from "../../context/LanguageContext";
 import { useAuth } from "../../context/AuthContext";
 import { getReadingHistory } from "../../services/readingHistoryService";
 import { ReadingHistoryItem } from "../../types/readingHistory";
+import { Shimmer } from "../Shimmer";
 import { spacing, borderRadius, typography } from "../../theme/colors";
 
 export const HistoryTab: React.FC = () => {
@@ -132,8 +132,36 @@ export const HistoryTab: React.FC = () => {
 
   if (loading) {
     return (
-      <View style={styles.loadingContainer}>
-        <ActivityIndicator color={colors.primary} />
+      <View style={styles.container}>
+        {[1, 2].map((index) => (
+          <View key={`history-skeleton-${index}`} style={styles.historyItem}>
+            {/* Book Thumbnail Skeleton */}
+            <Shimmer style={styles.skeletonThumbnail} />
+
+            {/* Book Info Skeleton */}
+            <View style={styles.bookInfo}>
+              <Shimmer style={styles.skeletonTitle} />
+              <Shimmer style={styles.skeletonUploader} />
+
+              {/* Progress Row Skeleton */}
+              <View style={styles.progressRow}>
+                <Shimmer style={styles.skeletonProgressCircle} />
+                <Shimmer style={styles.skeletonPagesLeft} />
+              </View>
+
+              {/* Continue Button Skeleton */}
+              <Shimmer style={styles.skeletonContinueButton} />
+
+              {/* Action Icons Skeleton */}
+              <View style={styles.actionIcons}>
+                <Shimmer style={styles.skeletonIconButton} />
+                <Shimmer style={styles.skeletonIconButton} />
+                <Shimmer style={styles.skeletonIconButton} />
+                <Shimmer style={styles.skeletonIconButton} />
+              </View>
+            </View>
+          </View>
+        ))}
       </View>
     );
   }
@@ -169,12 +197,6 @@ const createStyles = (colors: any) =>
   StyleSheet.create({
     container: {
       flex: 1,
-      backgroundColor: colors.background,
-    },
-    loadingContainer: {
-      flex: 1,
-      alignItems: "center",
-      justifyContent: "center",
       backgroundColor: colors.background,
     },
     listContent: {
@@ -303,5 +325,47 @@ const createStyles = (colors: any) =>
     placeholderText: {
       fontSize: 14,
       textAlign: "center",
+    },
+    skeletonThumbnail: {
+      width: 90,
+      height: 120,
+      borderRadius: borderRadius.sm,
+      backgroundColor: colors.border,
+    },
+    skeletonTitle: {
+      height: 18,
+      width: "85%",
+      borderRadius: 6,
+      backgroundColor: colors.border,
+    },
+    skeletonUploader: {
+      height: 14,
+      width: "60%",
+      borderRadius: 6,
+      backgroundColor: colors.border,
+    },
+    skeletonProgressCircle: {
+      width: 50,
+      height: 50,
+      borderRadius: 25,
+      backgroundColor: colors.border,
+    },
+    skeletonPagesLeft: {
+      height: 14,
+      width: 100,
+      borderRadius: 6,
+      backgroundColor: colors.border,
+    },
+    skeletonContinueButton: {
+      height: 44,
+      borderRadius: borderRadius.md,
+      backgroundColor: colors.border,
+      marginTop: spacing.sm,
+    },
+    skeletonIconButton: {
+      width: 40,
+      height: 40,
+      borderRadius: 20,
+      backgroundColor: colors.border,
     },
   });

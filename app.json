@@ -4,11 +4,11 @@
     "slug": "openbookstore",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/scribd_logo.png",
+    "icon": "./assets/scribd_logo_2.png",
     "userInterfaceStyle": "light",
     "newArchEnabled": true,
     "splash": {
-      "image": "./assets/scribd_logo.png",
+      "image": "./assets/scribd_logo_splash.png",
       "dark": {
         "image": "./assets/scribd_logo_darkmode.png",
         "resizeMode": "cover",
@@ -20,21 +20,22 @@
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.openbookstore.app",
-      "googleServicesFile": "./GoogleService-Info.plist",
+      "googleServicesFile": "./GoogleService-Info.plist"
     },
     "android": {
       "package": "com.openbookstore.app",
       "googleServicesFile": "./google-services.json",
       "versionCode": 1,
       "adaptiveIcon": {
-        "foregroundImage": "./assets/scribd_logo.png",
+        "foregroundImage": "./assets/scribd_logo_splash.png",
         "backgroundColor": "#ffffff"
       },
       "edgeToEdgeEnabled": true,
-      "predictiveBackGestureEnabled": false
+      "predictiveBackGestureEnabled": false,
+      "backgroundColor": "#ffffff"
     },
     "web": {
-      "favicon": "./assets/scribd_logo.png"
+      "favicon": "./assets/scribd_logo_2.png"
     },
     "plugins": [
       "expo-web-browser",
