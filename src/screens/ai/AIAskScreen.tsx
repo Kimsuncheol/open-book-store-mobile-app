@@ -1,33 +1,37 @@
 import React, { useState, useRef, useEffect } from "react";
 import {
   View,
-  Text,
   StyleSheet,
   FlatList,
-  TouchableOpacity,
-  TextInput,
   KeyboardAvoidingView,
   Platform,
-  useWindowDimensions,
+  Alert,
   type LayoutChangeEvent,
   type NativeScrollEvent,
   type NativeSyntheticEvent,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { Ionicons } from "@expo/vector-icons";
 import { useTheme } from "../../context/ThemeContext";
 import { useLanguage } from "../../context/LanguageContext";
 import { useAuth } from "../../context/AuthContext";
 import { askQuestion } from "../../services/aiService";
 import {
   addAIChatMessage,
+  clearAIChatMessages,
+  deleteAIChatRoom,
   getAIChatMessages,
+  getAIChatRoom,
   getBook,
   BookAnalysis,
 } from "../../services/firestoreService";
-import { Shimmer } from "../../components/Shimmer";
-import { spacing, typography, borderRadius } from "../../theme/colors";
-import type { AIAskScreenProps as Props } from "../../types/navigation";
+import { spacing } from "../../theme/colors";
+import type { AIChatRoomScreenProps as Props } from "../../types/navigation";
+import { ChatHeader } from "../../components/ai/ChatHeader";
+import { ChatMessage } from "../../components/ai/ChatMessage";
+import { ChatInputBar } from "../../components/ai/ChatInputBar";
+import { TypingIndicator } from "../../components/ai/TypingIndicator";
+import { SkeletonChatMessages } from "../../components/ai/SkeletonChatMessages";
+import { ChatOptionsSheet } from "../../components/ai/ChatOptionsSheet";
 
 interface Message {
   id: string;
@@ -35,17 +39,30 @@ interface Message {
   content: string;
 }
 
-const SkeletonGate: React.FC<{ released: boolean }> = ({ released }) => {
+const SkeletonGate: React.FC<{ released: boolean; enabled: boolean }> = ({
+  released,
+  enabled,
+}) => {
   const promiseRef = useRef<Promise<void> | null>(null);
   const resolveRef = useRef<(() => void) | null>(null);
 
   useEffect(() => {
+    if (!enabled && resolveRef.current) {
+      resolveRef.current();
+      resolveRef.current = null;
+      promiseRef.current = null;
+      return;
+    }
     if (released && resolveRef.current) {
       resolveRef.current();
       resolveRef.current = null;
       promiseRef.current = null;
     }
-  }, [released]);
+  }, [enabled, released]);
+
+  if (!enabled) {
+    return null;
+  }
 
   if (!released) {
     if (!promiseRef.current) {
@@ -60,10 +77,10 @@ const SkeletonGate: React.FC<{ released: boolean }> = ({ released }) => {
 };
 
 export const AIAskScreen: React.FC<Props> = ({ navigation, route }) => {
-  const bookId = route.params?.bookId || "general";
-  const title = route.params?.title || "Open Bookstore";
   const { colors } = useTheme();
   const { t } = useLanguage();
+  const bookId = route.params?.bookId || "general";
+  const title = route.params?.title || t("aiAsk.generalTitle");
   const { user } = useAuth();
   const userId = user?.uid || "guest";
   const [messages, setMessages] = useState<Message[]>([
@@ -76,47 +93,49 @@ export const AIAskScreen: React.FC<Props> = ({ navigation, route }) => {
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const [historyLoading, setHistoryLoading] = useState(true);
+  const [historyFlagReady, setHistoryFlagReady] = useState(false);
+  const [showSkeleton, setShowSkeleton] = useState(false);
   const [initialScrollDone, setInitialScrollDone] = useState(false);
   const [skeletonReleased, setSkeletonReleased] = useState(false);
   const [bookAnalysis, setBookAnalysis] = useState<BookAnalysis | undefined>(
     undefined
   );
+  const [bookCoverUrl, setBookCoverUrl] = useState<string | undefined>(
+    undefined
+  );
+  const [menuVisible, setMenuVisible] = useState(false);
   const listRef = useRef<FlatList>(null);
   const listLayoutHeightRef = useRef(0);
   const contentHeightRef = useRef(0);
   const autoScrollInProgressRef = useRef(false);
   const initialScrollTriggeredRef = useRef(false);
+  const historyLoadingRef = useRef(true);
 
   const styles = createStyles(colors);
-  const skeletonFallback = (
-    <View style={styles.skeletonOverlay}>
-      <View style={styles.messages}>
-        <View style={styles.msgRow}>
-          <Shimmer style={styles.avatarSkeleton} />
-          <Shimmer
-            style={[styles.skeletonBubble, styles.skeletonBubbleAi]}
-          />
-        </View>
-        <View style={[styles.msgRow, styles.msgRowUser]}>
-          <Shimmer
-            style={[styles.skeletonBubble, styles.skeletonBubbleUser]}
-          />
-        </View>
-        <View style={styles.msgRow}>
-          <Shimmer style={styles.avatarSkeleton} />
-          <Shimmer
-            style={[styles.skeletonBubble, styles.skeletonBubbleAi]}
-          />
-        </View>
-      </View>
-    </View>
-  );
+  const skeletonFallback = <SkeletonChatMessages colors={colors} />;
+
+  useEffect(() => {
+    historyLoadingRef.current = historyLoading;
+  }, [historyLoading]);
 
   useEffect(() => {
     let isMounted = true;
+    const initialCount = route.params?.messageCount;
+    const hasHistory =
+      typeof initialCount === "number" ? initialCount > 0 : false;
+    setShowSkeleton(hasHistory);
+    setHistoryFlagReady(typeof initialCount === "number");
     setHistoryLoading(true);
     setInitialScrollDone(false);
     setSkeletonReleased(false);
+    setBookCoverUrl(route.params?.coverUrl);
+    setMessages([
+      {
+        id: "0",
+        role: "assistant",
+        content: t("aiAsk.intro", { title }),
+      },
+    ]);
     listLayoutHeightRef.current = 0;
     contentHeightRef.current = 0;
     autoScrollInProgressRef.current = false;
@@ -144,15 +163,45 @@ export const AIAskScreen: React.FC<Props> = ({ navigation, route }) => {
     return () => {
       isMounted = false;
     };
-  }, [bookId, userId]);
+  }, [bookId, route.params?.messageCount, userId]);
 
   useEffect(() => {
-    if (historyLoading || !initialScrollDone || skeletonReleased) return;
+    if (
+      historyLoading ||
+      !initialScrollDone ||
+      skeletonReleased ||
+      !showSkeleton
+    ) {
+      return;
+    }
     const timer = setTimeout(() => {
       setSkeletonReleased(true);
     }, 500);
     return () => clearTimeout(timer);
-  }, [historyLoading, initialScrollDone, skeletonReleased]);
+  }, [historyLoading, initialScrollDone, skeletonReleased, showSkeleton]);
+
+  useEffect(() => {
+    let isMounted = true;
+    if (historyFlagReady || !historyLoading) return undefined;
+    const loadChatRoom = async () => {
+      try {
+        const room = await getAIChatRoom(userId, bookId);
+        if (!isMounted || !historyLoadingRef.current) return;
+        const hasHistory = (room?.messageCount ?? 0) > 0;
+        setShowSkeleton(hasHistory);
+      } catch {
+        // Ignore room lookup errors
+      } finally {
+        if (isMounted && historyLoadingRef.current) {
+          setHistoryFlagReady(true);
+        }
+      }
+    };
+    loadChatRoom();
+    return () => {
+      isMounted = false;
+    };
+  }, [bookId, historyFlagReady, historyLoading, userId]);
 
   // Fetch book analysis for context
   useEffect(() => {
@@ -163,6 +212,7 @@ export const AIAskScreen: React.FC<Props> = ({ navigation, route }) => {
         if (book?.analyze) {
           setBookAnalysis(book.analyze);
         }
+        setBookCoverUrl(book?.coverUrl ?? route.params?.coverUrl);
       } catch (error) {
         console.error("Error fetching book analysis:", error);
       }
@@ -179,9 +229,10 @@ export const AIAskScreen: React.FC<Props> = ({ navigation, route }) => {
       content: input.trim(),
     };
     setMessages((prev) => [...prev, userMsg]);
-    addAIChatMessage(userId, bookId, "user", userMsg.content).catch(
-      () => undefined
-    );
+    addAIChatMessage(userId, bookId, "user", userMsg.content, {
+      title,
+      coverUrl: bookCoverUrl,
+    }).catch(() => undefined);
     setInput("");
     setLoading(true);
 
@@ -200,9 +251,10 @@ export const AIAskScreen: React.FC<Props> = ({ navigation, route }) => {
         content: response,
       };
       setMessages((prev) => [...prev, aiMsg]);
-      addAIChatMessage(userId, bookId, "assistant", response).catch(
-        () => undefined
-      );
+      addAIChatMessage(userId, bookId, "assistant", response, {
+        title,
+        coverUrl: bookCoverUrl,
+      }).catch(() => undefined);
     } catch {
       const errorMsg: Message = {
         id: (Date.now() + 1).toString(),
@@ -212,6 +264,59 @@ export const AIAskScreen: React.FC<Props> = ({ navigation, route }) => {
       setMessages((prev) => [...prev, errorMsg]);
     }
     setLoading(false);
+  };
+
+  const confirmClearChat = () => {
+    Alert.alert(
+      t("aiAsk.menuClearTitle"),
+      t("aiAsk.menuClearText"),
+      [
+        { text: t("aiAsk.menuCancel"), style: "cancel" },
+        {
+          text: t("aiAsk.menuClearConfirm"),
+          style: "destructive",
+          onPress: async () => {
+            try {
+              await clearAIChatMessages(userId, bookId);
+              setMessages([
+                {
+                  id: "0",
+                  role: "assistant",
+                  content: t("aiAsk.intro", { title }),
+                },
+              ]);
+              setShowSkeleton(false);
+              setSkeletonReleased(true);
+              setInitialScrollDone(true);
+            } catch (error) {
+              console.error("Failed to clear chat:", error);
+            }
+          },
+        },
+      ]
+    );
+  };
+
+  const confirmDeleteChat = () => {
+    Alert.alert(
+      t("aiAsk.menuDeleteTitle"),
+      t("aiAsk.menuDeleteText"),
+      [
+        { text: t("aiAsk.menuCancel"), style: "cancel" },
+        {
+          text: t("aiAsk.menuDeleteConfirm"),
+          style: "destructive",
+          onPress: async () => {
+            try {
+              await deleteAIChatRoom(userId, bookId);
+              navigation.goBack();
+            } catch (error) {
+              console.error("Failed to delete chat:", error);
+            }
+          },
+        },
+      ]
+    );
   };
 
   const maybeCompleteInitialScroll = (contentHeight: number) => {
@@ -247,12 +352,9 @@ export const AIAskScreen: React.FC<Props> = ({ navigation, route }) => {
     }
   };
 
-  const handleScroll = (
-    event: NativeSyntheticEvent<NativeScrollEvent>
-  ) => {
+  const handleScroll = (event: NativeSyntheticEvent<NativeScrollEvent>) => {
     if (!autoScrollInProgressRef.current || initialScrollDone) return;
-    const { layoutMeasurement, contentOffset, contentSize } =
-      event.nativeEvent;
+    const { layoutMeasurement, contentOffset, contentSize } = event.nativeEvent;
     if (
       layoutMeasurement.height + contentOffset.y >=
       contentSize.height - spacing.sm
@@ -270,18 +372,14 @@ export const AIAskScreen: React.FC<Props> = ({ navigation, route }) => {
         behavior={Platform.OS === "ios" ? "padding" : "height"}
         keyboardVerticalOffset={Platform.OS === "ios" ? 90 : 30}
       >
-        <View style={styles.header}>
-          <TouchableOpacity onPress={() => navigation.goBack()}>
-            <Ionicons name="arrow-back" size={24} color={colors.textPrimary} />
-          </TouchableOpacity>
-          <View style={styles.headerInfo}>
-            <Text style={styles.headerTitle}>{t("aiAsk.title")}</Text>
-            <Text style={styles.headerSubtitle} numberOfLines={1}>
-              {title}
-            </Text>
-          </View>
-          <View style={{ width: 24 }} />
-        </View>
+        <ChatHeader
+          onBack={() => navigation.goBack()}
+          onMenuPress={() => setMenuVisible(true)}
+          menuLabel={t("aiAsk.menuMore")}
+          title={t("aiAsk.title")}
+          subtitle={title}
+          colors={colors}
+        />
 
         <View style={styles.listContainer}>
           <FlatList
@@ -295,81 +393,54 @@ export const AIAskScreen: React.FC<Props> = ({ navigation, route }) => {
             onScroll={handleScroll}
             scrollEventThrottle={16}
             renderItem={({ item }) => (
-              <View
-                style={[
-                  styles.msgRow,
-                  item.role === "user" && styles.msgRowUser,
-                ]}
-              >
-                {item.role === "assistant" && (
-                  <View style={styles.avatar}>
-                    <Ionicons
-                      name="sparkles"
-                      size={16}
-                      color={colors.primary}
-                    />
-                  </View>
-                )}
-                <View
-                  style={[
-                    styles.bubble,
-                    item.role === "user" ? styles.userBubble : styles.aiBubble,
-                  ]}
-                >
-                  <Text
-                    style={[
-                      styles.msgText,
-                      item.role === "user" && styles.userText,
-                    ]}
-                  >
-                    {item.content}
-                  </Text>
-                </View>
-              </View>
+              <ChatMessage message={item} colors={colors} />
             )}
           />
           <React.Suspense fallback={skeletonFallback}>
-            <SkeletonGate released={skeletonReleased} />
+            <SkeletonGate
+              released={skeletonReleased}
+              enabled={showSkeleton}
+            />
           </React.Suspense>
         </View>
 
-        {/* Typing indicator */}
-        {loading && (
-          <View style={[styles.msgRow, styles.typingRow]}>
-            <View style={styles.avatar}>
-              <Ionicons name="sparkles" size={16} color={colors.primary} />
-            </View>
-            <Shimmer
-              style={[
-                styles.skeletonBubble,
-                styles.skeletonBubbleAi,
-                styles.typingBubble,
-              ]}
-            />
-          </View>
-        )}
+        {loading && <TypingIndicator colors={colors} />}
 
-        <View style={styles.inputBar}>
-          <TextInput
-            style={styles.input}
-            placeholder={t("aiAsk.placeholder")}
-            placeholderTextColor={colors.textMuted}
-            value={input}
-            onChangeText={setInput}
-            multiline
-          />
-          <TouchableOpacity
-            style={[styles.sendBtn, !input.trim() && styles.sendBtnDisabled]}
-            onPress={handleSend}
-            disabled={!input.trim() || loading}
-          >
-            <Ionicons
-              name="send"
-              size={20}
-              color={input.trim() ? colors.textLight : colors.textMuted}
-            />
-          </TouchableOpacity>
-        </View>
+        <ChatInputBar
+          value={input}
+          onChangeText={setInput}
+          onSend={handleSend}
+          placeholder={t("aiAsk.placeholder")}
+          loading={loading}
+          colors={colors}
+        />
+
+        <ChatOptionsSheet
+          visible={menuVisible}
+          title={title}
+          subtitle={t("aiAsk.menuChatActions")}
+          colors={colors}
+          onClose={() => setMenuVisible(false)}
+          actions={[
+            {
+              label: t("aiAsk.menuClear"),
+              icon: "trash-outline",
+              onPress: () => {
+                setMenuVisible(false);
+                confirmClearChat();
+              },
+            },
+            {
+              label: t("aiAsk.menuDelete"),
+              icon: "close-circle-outline",
+              destructive: true,
+              onPress: () => {
+                setMenuVisible(false);
+                confirmDeleteChat();
+              },
+            },
+          ]}
+        />
       </KeyboardAvoidingView>
     </SafeAreaView>
   );
@@ -381,98 +452,13 @@ const createStyles = (colors: any) =>
       flex: 1,
       backgroundColor: colors.background,
     },
-    content: { flex: 1 },
-    header: {
-      flexDirection: "row",
-      alignItems: "center",
-      paddingVertical: spacing.xs,
-      paddingHorizontal: spacing.md,
-      borderBottomWidth: 1,
-      borderBottomColor: colors.border,
-    },
-    headerInfo: { flex: 1, marginLeft: spacing.md },
-    headerTitle: { ...typography.h3, color: colors.textPrimary },
-    headerSubtitle: { ...typography.caption, color: colors.textMuted },
-    listContainer: { flex: 1 },
-    messages: { padding: spacing.md },
-    msgRow: { flexDirection: "row", marginBottom: spacing.md },
-    msgRowUser: { justifyContent: "flex-end" },
-    avatar: {
-      width: 28,
-      height: 28,
-      borderRadius: 14,
-      backgroundColor: colors.surface,
-      alignItems: "center",
-      justifyContent: "center",
-      marginRight: spacing.sm,
-    },
-    avatarSkeleton: {
-      width: 28,
-      height: 28,
-      borderRadius: 14,
-      backgroundColor: colors.border,
-      marginRight: spacing.sm,
-    },
-    bubble: {
-      maxWidth: "75%",
-      padding: spacing.md,
-      borderRadius: borderRadius.lg,
-    },
-    userBubble: { backgroundColor: colors.primary, borderBottomRightRadius: 4 },
-    aiBubble: { backgroundColor: colors.surface, borderBottomLeftRadius: 4 },
-    msgText: { ...typography.body, color: colors.textPrimary },
-    userText: { color: colors.textLight },
-    skeletonBubble: {
-      height: 44,
-      borderRadius: borderRadius.lg,
-      backgroundColor: colors.border,
-    },
-    skeletonBubbleUser: {
-      width: "60%",
-    },
-    skeletonBubbleAi: {
-      width: "75%",
-    },
-    typingRow: {
-      paddingHorizontal: spacing.md,
-      marginBottom: spacing.sm,
-    },
-    typingBubble: {
-      height: 32,
-    },
-    skeletonOverlay: {
-      ...StyleSheet.absoluteFillObject,
-      backgroundColor: colors.background,
-      zIndex: 1,
-    },
-    inputBar: {
-      flexDirection: "row",
-      alignItems: "center",
-      paddingHorizontal: spacing.md,
-      paddingTop: spacing.md,
-      paddingBottom: spacing.md,
-      borderTopWidth: 1,
-      borderTopColor: colors.border,
-      backgroundColor: colors.background,
-    },
-    input: {
+    content: {
       flex: 1,
-      ...typography.body,
-      color: colors.textPrimary,
-      backgroundColor: colors.surface,
-      borderRadius: borderRadius.lg,
-      paddingHorizontal: spacing.md,
-      paddingVertical: spacing.sm,
-      maxHeight: 100,
     },
-    sendBtn: {
-      width: 44,
-      height: 44,
-      borderRadius: 22,
-      backgroundColor: colors.primary,
-      alignItems: "center",
-      justifyContent: "center",
-      marginLeft: spacing.sm,
+    listContainer: {
+      flex: 1,
     },
-    sendBtnDisabled: { backgroundColor: colors.border },
+    messages: {
+      padding: spacing.md,
+    },
   });

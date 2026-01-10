@@ -10,6 +10,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { useTheme } from "../../context/ThemeContext";
 import { spacing } from "../../theme/colors";
 import { useTranslation } from "react-i18next";
+import { VoiceInputButton } from "../common/VoiceInputButton";
 
 const SCRIBD_ACCENT = "#E31226";
 const SCRIBD_PAPER = "#F8F6F2";
@@ -58,16 +59,25 @@ export const SearchBar: React.FC<SearchBarProps> = ({
       {aiSearching ? (
         <ActivityIndicator size="small" color={SCRIBD_ACCENT} />
       ) : (
-        <TouchableOpacity
-          onPress={onAIModeToggle}
-          style={[styles.aiToggle, aiMode && styles.aiToggleActive]}
-        >
-          <Ionicons
-            name="sparkles"
+        <>
+          <VoiceInputButton
+            onResult={(text) =>
+              onSearchChange(search ? `${search} ${text}` : text)
+            }
+            colors={colors}
             size={18}
-            color={aiMode ? SCRIBD_ACCENT : colors.textMuted}
           />
-        </TouchableOpacity>
+          <TouchableOpacity
+            onPress={onAIModeToggle}
+            style={[styles.aiToggle, aiMode && styles.aiToggleActive]}
+          >
+            <Ionicons
+              name="sparkles"
+              size={18}
+              color={aiMode ? SCRIBD_ACCENT : colors.textMuted}
+            />
+          </TouchableOpacity>
+        </>
       )}
     </View>
   );

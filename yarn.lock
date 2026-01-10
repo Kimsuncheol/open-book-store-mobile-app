@@ -1694,6 +1694,11 @@
   resolved "https://registry.npmjs.org/@istanbuljs/schema/-/schema-0.1.3.tgz"
   integrity sha512-ZXRY4jNvVgSVQ8DL3LTcakaAtXwTVUxE81hslsyD2AtoXW/wVob10HkOJ1X/pAlcI7D+2YoZKg5do8G/w6RYgA==
 
+"@jamsch/expo-speech-recognition@^0.2.15":
+  version "0.2.15"
+  resolved "https://registry.yarnpkg.com/@jamsch/expo-speech-recognition/-/expo-speech-recognition-0.2.15.tgz#f17aeb96aede67991276ba381d8d17050a18051c"
+  integrity sha512-VzhR6a1bYnh8Yl704sBbvCmPqkZWzEggzl504myy6GKqQ90Ib+FQsz9FKI8RQbBXf8KHfhJVT3t0AxP6lYyyYw==
+
 "@jest/console@30.2.0":
   version "30.2.0"
   resolved "https://registry.npmjs.org/@jest/console/-/console-30.2.0.tgz"

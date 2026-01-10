@@ -11,8 +11,9 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { Button } from "../../components/Button";
 import { useTheme } from "../../context/ThemeContext";
+import { useAuth } from "../../context/AuthContext";
 import { generateSummary } from "../../services/aiService";
-import { getBook } from "../../services/firestoreService";
+import { getBook, getAIChatRoom } from "../../services/firestoreService";
 import { spacing, typography, borderRadius } from "../../theme/colors";
 import type { AISummaryScreenProps } from "../../types/navigation";
 
@@ -21,6 +22,8 @@ type Props = AISummaryScreenProps;
 export const AISummaryScreen: React.FC<Props> = ({ navigation, route }) => {
   const { bookId, title } = route.params;
   const { colors } = useTheme();
+  const { user } = useAuth();
+  const userId = user?.uid || "guest";
   const [summary, setSummary] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -47,6 +50,19 @@ export const AISummaryScreen: React.FC<Props> = ({ navigation, route }) => {
       setError(err.message || "Failed to generate summary");
     }
     setLoading(false);
+  };
+
+  const handleAskPress = async () => {
+    try {
+      const room = await getAIChatRoom(userId, bookId);
+      navigation.navigate("AIAsk", {
+        bookId,
+        title,
+        messageCount: room?.messageCount ?? 0,
+      });
+    } catch {
+      navigation.navigate("AIAsk", { bookId, title });
+    }
   };
 
   useEffect(() => {
@@ -84,7 +100,7 @@ export const AISummaryScreen: React.FC<Props> = ({ navigation, route }) => {
 
         <TouchableOpacity
           style={styles.askButton}
-          onPress={() => navigation.navigate("AIAsk", { bookId, title })}
+          onPress={handleAskPress}
         >
           <Ionicons name="chatbubbles" size={24} color={colors.primary} />
           <Text style={styles.askButtonText}>

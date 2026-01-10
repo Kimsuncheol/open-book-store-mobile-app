@@ -20,7 +20,11 @@
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.openbookstore.app",
-      "googleServicesFile": "./GoogleService-Info.plist"
+      "googleServicesFile": "./GoogleService-Info.plist",
+      "infoPlist": {
+        "NSMicrophoneUsageDescription": "This app uses the microphone for voice input to search and chat.",
+        "NSSpeechRecognitionUsageDescription": "This app uses speech recognition to convert your voice to text."
+      }
     },
     "android": {
       "package": "com.openbookstore.app",
@@ -32,14 +36,24 @@
       },
       "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": false,
-      "backgroundColor": "#ffffff"
+      "backgroundColor": "#ffffff",
+      "permissions": [
+        "android.permission.RECORD_AUDIO"
+      ]
     },
     "web": {
       "favicon": "./assets/scribd_logo_2.png"
     },
     "plugins": [
       "expo-web-browser",
-      "expo-build-properties"
+      "expo-build-properties",
+      [
+        "@jamsch/expo-speech-recognition",
+        {
+          "microphonePermission": "This app uses the microphone for voice input.",
+          "speechRecognitionPermission": "This app uses speech recognition to convert your voice to text."
+        }
+      ]
     ]
   }
 }

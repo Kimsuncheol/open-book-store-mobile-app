@@ -15,7 +15,14 @@ export type DashboardStackParamList = {
   BookList: { category?: string };
   BookDetails: { bookId: string };
   AISummary: { bookId: string; title: string };
-  AIAsk: { bookId?: string; title?: string } | undefined;
+  AIAsk:
+    | {
+        bookId?: string;
+        title?: string;
+        coverUrl?: string;
+        messageCount?: number;
+      }
+    | undefined;
   WriteReview: { bookId: string; bookTitle: string };
   BookReviews: { bookId: string; bookTitle: string };
   Polls: undefined;
@@ -40,7 +47,15 @@ export type ProfileStackParamList = {
 
 // AIAsk Stack - screens accessible from AIAsk tab
 export type AIAskStackParamList = {
-  AIAskMain: { bookId?: string; title?: string } | undefined;
+  AIAskMain: undefined;
+  AIChatRoom:
+    | {
+        bookId?: string;
+        title?: string;
+        coverUrl?: string;
+        messageCount?: number;
+      }
+    | undefined;
 };
 
 // Cart Stack - screens accessible from Cart tab
@@ -160,8 +175,13 @@ export type SubscriptionBillingScreenProps = CompositeScreenProps<
 // =============================================================================
 // Screen Props - AIAsk Stack
 // =============================================================================
-export type AIAskScreenProps = CompositeScreenProps<
+export type AIChatListScreenProps = CompositeScreenProps<
   NativeStackScreenProps<AIAskStackParamList, 'AIAskMain'>,
+  BottomTabScreenProps<BottomTabParamList>
+>;
+
+export type AIChatRoomScreenProps = CompositeScreenProps<
+  NativeStackScreenProps<AIAskStackParamList, 'AIChatRoom'>,
   BottomTabScreenProps<BottomTabParamList>
 >;
 
