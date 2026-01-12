@@ -5,12 +5,12 @@
 import { GEMINI_API_KEY } from "@env";
 import { BookAnalysis } from "./booksService";
 
-interface Message {
-  role: 'user' | 'assistant';
+export interface AIContextMessage {
+  role: "user" | "assistant";
   content: string;
 }
 
-const conversationCache: Map<string, Message[]> = new Map();
+const conversationCache: Map<string, AIContextMessage[]> = new Map();
 const summaryCache: Map<string, string> = new Map();
 
 export const generateSummary = async (bookId: string, content: string): Promise<string> => {
@@ -53,11 +53,39 @@ Book Analysis:
   
   const result = await callGemini(contextPrompt);
   
-  history.push({ role: 'user', content: question });
-  history.push({ role: 'assistant', content: result });
+  history.push({ role: "user", content: question });
+  history.push({ role: "assistant", content: result });
   conversationCache.set(bookId, history);
   
   return result;
+};
+
+export const generateResponseWithHistory = async (
+  question: string,
+  bookContent: string,
+  history: AIContextMessage[],
+  bookAnalysis?: BookAnalysis
+): Promise<string> => {
+  let analysisContext = "";
+  if (bookAnalysis && bookAnalysis.status === "completed") {
+    analysisContext = `
+
+Book Analysis:
+- Summary: ${bookAnalysis.summary}
+- Topics: ${bookAnalysis.topics.join(", ")}
+- Themes: ${bookAnalysis.themes.join(", ")}
+- Key Points: ${bookAnalysis.keyPoints.join("; ")}`;
+  }
+
+  const contextPrompt = `Book content:\n${bookContent.substring(
+    0,
+    4000
+  )}${analysisContext}\n\nPrevious conversation:\n${history
+    .slice(-4)
+    .map((m) => `${m.role}: ${m.content}`)
+    .join("\n")}\n\nQuestion: ${question}`;
+
+  return callGemini(contextPrompt);
 };
 
 const callGemini = async (prompt: string): Promise<string> => {
@@ -82,5 +110,12 @@ const callGemini = async (prompt: string): Promise<string> => {
   return data.candidates?.[0]?.content?.parts?.[0]?.text || 'No response';
 };
 
-export const clearConversation = (bookId: string) => conversationCache.delete(bookId);
-export const getConversation = (bookId: string) => conversationCache.get(bookId) || [];
+export const clearConversation = (bookId: string) =>
+  conversationCache.delete(bookId);
+export const getConversation = (bookId: string) =>
+  conversationCache.get(bookId) || [];
+export const setConversation = (
+  bookId: string,
+  messages: AIContextMessage[]
+) =>
+  conversationCache.set(bookId, messages);

@@ -24,6 +24,7 @@
     "@tosspayments/widget-sdk-react-native": "^1.5.1",
     "expo": "~54.0.31",
     "expo-auth-session": "~7.0.10",
+    "expo-blur": "~15.0.8",
     "expo-build-properties": "~1.0.10",
     "expo-crypto": "~15.0.8",
     "expo-document-picker": "~14.0.8",

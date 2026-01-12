@@ -1,12 +1,8 @@
 import React, { useState, useRef, useEffect } from "react";
 import {
-  Alert,
   View,
-  Text,
   StyleSheet,
   VirtualizedList,
-  Pressable,
-  TouchableOpacity,
   KeyboardAvoidingView,
   Platform,
   type LayoutChangeEvent,
@@ -19,21 +15,15 @@ import { DocumentData, QueryDocumentSnapshot } from "firebase/firestore";
 import { useTheme } from "../../context/ThemeContext";
 import { useLanguage } from "../../context/LanguageContext";
 import { useAuth } from "../../context/AuthContext";
-import {
-  askQuestion,
-  generateResponseWithHistory,
-  setConversation,
-} from "../../services/aiService";
+import { askQuestion } from "../../services/aiService";
 import {
   addAIChatMessage,
-  deleteAIChatMessages,
   getAIChatMessagesPaged,
   getAIChatRoom,
   getBook,
   BookAnalysis,
-  updateAIChatMessage,
 } from "../../services/firestoreService";
-import { spacing, typography } from "../../theme/colors";
+import { spacing } from "../../theme/colors";
 import type { AIChatRoomScreenProps as Props } from "../../types/navigation";
 import { ChatHeader } from "../../components/ai/ChatHeader";
 import { ChatMessage } from "../../components/ai/ChatMessage";
@@ -41,7 +31,6 @@ import { ChatInputBar } from "../../components/ai/ChatInputBar";
 import { TypingIndicator } from "../../components/ai/TypingIndicator";
 import { SkeletonChatMessages } from "../../components/ai/SkeletonChatMessages";
 import { DateIndicator } from "../../components/ai/DateIndicator";
-import { ChatOptionsSheet } from "../../components/ai/ChatOptionsSheet";
 
 interface Message {
   id: string;
@@ -49,8 +38,6 @@ interface Message {
   content: string;
   createdAt?: Date;
   date?: string;
-  isSystem?: boolean;
-  pending?: boolean;
 }
 
 const formatDateLabel = (date: Date): string => {
@@ -155,21 +142,14 @@ export const AIAskScreen: React.FC<Props> = ({ navigation, route }) => {
   const title = route.params?.title || t("aiAsk.generalTitle");
   const { user } = useAuth();
   const userId = user?.uid || "guest";
-  const buildWelcomeMessage = (): Message => ({
-    id: "0",
-    role: "assistant",
-    content: t("aiAsk.intro", { title }),
-    createdAt: new Date(),
-    isSystem: true,
-    pending: false,
-  });
   const [messages, setMessages] = useState<Message[]>([
-    buildWelcomeMessage(),
+    {
+      id: "0",
+      role: "assistant",
+      content: t("aiAsk.intro", { title }),
+    },
   ]);
   const [input, setInput] = useState("");
-  const [menuVisible, setMenuVisible] = useState(false);
-  const [activeMessage, setActiveMessage] = useState<Message | null>(null);
-  const [editingMessageId, setEditingMessageId] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [historyLoading, setHistoryLoading] = useState(true);
   const [historyFlagReady, setHistoryFlagReady] = useState(false);
@@ -186,9 +166,6 @@ export const AIAskScreen: React.FC<Props> = ({ navigation, route }) => {
     useState<QueryDocumentSnapshot<DocumentData> | null>(null);
   const [loadingMore, setLoadingMore] = useState(false);
   const [hasMoreMessages, setHasMoreMessages] = useState(true);
-  const messagesRef = useRef<Message[]>(messages);
-  const bookContextLabel =
-    title === "Open Bookstore" ? "General Assistant" : `Content from ${title}`;
 
   // ... (deps)
 
@@ -202,10 +179,6 @@ export const AIAskScreen: React.FC<Props> = ({ navigation, route }) => {
     isLoadingMoreRef.current = loadingMore;
   }, [loadingMore]);
 
-  useEffect(() => {
-    messagesRef.current = messages;
-  }, [messages]);
-
   // Removed historyLoading effect and scroll logic
 
   useEffect(() => {
@@ -215,7 +188,12 @@ export const AIAskScreen: React.FC<Props> = ({ navigation, route }) => {
     setBookCoverUrl(route.params?.coverUrl);
 
     // Default welcome message
-    const welcomeMsg = buildWelcomeMessage();
+    const welcomeMsg: Message = {
+      id: "0",
+      role: "assistant",
+      content: t("aiAsk.intro", { title }),
+      createdAt: new Date(),
+    };
 
     // Start with strictly the welcome message if no history yet?
     // Actually we fetch history. If history exists, we show it.
@@ -241,8 +219,6 @@ export const AIAskScreen: React.FC<Props> = ({ navigation, route }) => {
               role: msg.role,
               content: msg.content,
               createdAt: msg.createdAt,
-              isSystem: false,
-              pending: false,
             }))
           );
         } else {
@@ -289,8 +265,6 @@ export const AIAskScreen: React.FC<Props> = ({ navigation, route }) => {
             role: msg.role,
             content: msg.content,
             createdAt: msg.createdAt,
-            isSystem: false,
-            pending: false,
           })),
         ]);
       }
@@ -301,265 +275,21 @@ export const AIAskScreen: React.FC<Props> = ({ navigation, route }) => {
     }
   };
 
-  const getConversationMessages = (nextMessages: Message[]) =>
-    nextMessages.filter(
-      (msg) =>
-        !msg.isSystem && (msg.role === "user" || msg.role === "assistant")
-    );
-
-  const buildConversationHistory = (nextMessages: Message[]) =>
-    getConversationMessages(nextMessages)
-      .slice()
-      .reverse()
-      .map((msg) => ({
-        role: msg.role as "user" | "assistant",
-        content: msg.content,
-      }));
-
-  const buildHistoryBeforeMessage = (
-    nextMessages: Message[],
-    messageId: string
-  ) => {
-    const chronological = getConversationMessages(nextMessages)
-      .slice()
-      .reverse();
-    const targetIndex = chronological.findIndex((msg) => msg.id === messageId);
-    const history =
-      targetIndex === -1 ? chronological : chronological.slice(0, targetIndex);
-    return history.map((msg) => ({
-      role: msg.role as "user" | "assistant",
-      content: msg.content,
-    }));
-  };
-
-  const getLinkedAssistantMessages = (
-    nextMessages: Message[],
-    messageId: string
-  ) => {
-    const chronological = getConversationMessages(nextMessages)
-      .slice()
-      .reverse();
-    const targetIndex = chronological.findIndex((msg) => msg.id === messageId);
-    if (targetIndex === -1) return [];
-    const linked: Message[] = [];
-    for (let index = targetIndex + 1; index < chronological.length; index += 1) {
-      const msg = chronological[index];
-      if (msg.role === "user") break;
-      if (msg.role === "assistant") linked.push(msg);
-    }
-    return linked;
-  };
-
-  const syncConversationFromMessages = (nextMessages: Message[]) => {
-    setConversation(bookId, buildConversationHistory(nextMessages));
-  };
-
-  const replaceMessageId = (tempId: string, nextId: string) => {
-    setMessages((prev) =>
-      prev.map((msg) =>
-        msg.id === tempId ? { ...msg, id: nextId, pending: false } : msg
-      )
-    );
-    setEditingMessageId((prev) => (prev === tempId ? nextId : prev));
-    setActiveMessage((prev) =>
-      prev && prev.id === tempId ? { ...prev, id: nextId, pending: false } : prev
-    );
-  };
-
-  const openMessageMenu = (message: Message) => {
-    if (message.isSystem || message.pending) return;
-    setActiveMessage(message);
-    setMenuVisible(true);
-  };
-
-  const closeMessageMenu = () => {
-    setMenuVisible(false);
-    setActiveMessage(null);
-  };
-
-  const startEditingMessage = (message: Message) => {
-    if (message.role !== "user") {
-      closeMessageMenu();
-      return;
-    }
-    setEditingMessageId(message.id);
-    setInput(message.content);
-    closeMessageMenu();
-  };
-
-  const cancelEditing = () => {
-    setEditingMessageId(null);
-    setInput("");
-  };
-
-  const regenerateAssistantReply = async (
-    messageId: string,
-    question: string,
-    baseMessages: Message[]
-  ) => {
-    setLoading(true);
-    try {
-      const history = buildHistoryBeforeMessage(baseMessages, messageId);
-      const response = await generateResponseWithHistory(
-        question,
-        bookContextLabel,
-        history,
-        bookAnalysis
-      );
-      const aiMsg: Message = {
-        id: (Date.now() + 1).toString(),
-        role: "assistant",
-        content: response,
-        createdAt: new Date(),
-        pending: true,
-      };
-      setMessages((prev) => {
-        const updated = [aiMsg, ...prev];
-        syncConversationFromMessages(updated);
-        return updated;
-      });
-      addAIChatMessage(userId, bookId, "assistant", response, {
-        title,
-        coverUrl: bookCoverUrl,
-      })
-        .then((id) => replaceMessageId(aiMsg.id, id))
-        .catch(() => undefined);
-    } catch (error) {
-      console.error("Failed to regenerate response:", error);
-      Alert.alert(
-        t("aiAsk.messageRegenerateFailedTitle"),
-        t("aiAsk.messageRegenerateFailed"),
-        [
-          { text: t("aiAsk.menuCancel"), style: "cancel" },
-          {
-            text: t("aiAsk.messageRegenerateRetry"),
-            onPress: () =>
-              regenerateAssistantReply(
-                messageId,
-                question,
-                messagesRef.current
-              ),
-          },
-        ]
-      );
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const applyEdit = async () => {
-    const trimmed = input.trim();
-    if (!editingMessageId || !trimmed) return;
-    const messageId = editingMessageId;
-    const target = messages.find((msg) => msg.id === messageId);
-    if (!target || target.pending || target.role !== "user") {
-      return;
-    }
-    const linkedAssistants = getLinkedAssistantMessages(messages, messageId);
-    const linkedIds = linkedAssistants.map((msg) => msg.id);
-    const previousMessages = messages;
-    const nextMessages = messages
-      .filter((msg) => !linkedIds.includes(msg.id))
-      .map((msg) =>
-        msg.id === messageId ? { ...msg, content: trimmed } : msg
-      );
-    setMessages(nextMessages);
-    syncConversationFromMessages(nextMessages);
-    setEditingMessageId(null);
-    setInput("");
-    try {
-      const deletableIds = linkedAssistants
-        .filter((msg) => !msg.pending)
-        .map((msg) => msg.id);
-      if (deletableIds.length > 0) {
-        await deleteAIChatMessages(userId, bookId, deletableIds);
-      }
-      await updateAIChatMessage(userId, bookId, messageId, trimmed);
-    } catch (error) {
-      console.error("Failed to update message:", error);
-      setMessages(previousMessages);
-      syncConversationFromMessages(previousMessages);
-      setEditingMessageId(messageId);
-      setInput(trimmed);
-      Alert.alert(
-        t("aiAsk.messageEditFailedTitle"),
-        t("aiAsk.messageEditFailed")
-      );
-      return;
-    }
-
-    await regenerateAssistantReply(messageId, trimmed, nextMessages);
-  };
-
-  const handleDeleteMessage = async (message: Message) => {
-    const previousMessages = messages;
-    const wasEditing = editingMessageId === message.id;
-    const previousInput = input;
-    const linkedAssistants =
-      message.role === "user"
-        ? getLinkedAssistantMessages(messages, message.id)
-        : [];
-    const linkedIds = linkedAssistants.map((msg) => msg.id);
-    const idsToRemove = [message.id, ...linkedIds];
-    const nextMessages = messages.filter(
-      (msg) => !idsToRemove.includes(msg.id)
-    );
-    const nextState =
-      nextMessages.length > 0 ? nextMessages : [buildWelcomeMessage()];
-    setMessages(nextState);
-    syncConversationFromMessages(nextState);
-    closeMessageMenu();
-    if (wasEditing) {
-      setEditingMessageId(null);
-      setInput("");
-    }
-    const deletableIds = [message, ...linkedAssistants]
-      .filter((msg) => !msg.pending)
-      .map((msg) => msg.id);
-    if (deletableIds.length === 0) {
-      return;
-    }
-    try {
-      await deleteAIChatMessages(userId, bookId, deletableIds);
-    } catch (error) {
-      console.error("Failed to delete message:", error);
-      setMessages(previousMessages);
-      syncConversationFromMessages(previousMessages);
-      if (wasEditing) {
-        setEditingMessageId(message.id);
-        setInput(previousInput);
-      }
-      Alert.alert(
-        t("aiAsk.messageDeleteFailedTitle"),
-        t("aiAsk.messageDeleteFailed")
-      );
-    }
-  };
-
   const handleSend = async () => {
-    const trimmed = input.trim();
-    if (!trimmed) return;
-    if (editingMessageId) {
-      await applyEdit();
-      return;
-    }
-    if (loading) return;
+    if (!input.trim() || loading) return;
 
     const userMsg: Message = {
       id: Date.now().toString(),
       role: "user",
-      content: trimmed,
+      content: input.trim(),
       createdAt: new Date(),
-      pending: true,
     };
     // Newest messages at START of array for inverted list
     setMessages((prev) => [userMsg, ...prev]);
     addAIChatMessage(userId, bookId, "user", userMsg.content, {
       title,
       coverUrl: bookCoverUrl,
-    })
-      .then((id) => replaceMessageId(userMsg.id, id))
-      .catch(() => undefined);
+    }).catch(() => undefined);
     setInput("");
     setLoading(true);
 
@@ -567,30 +297,28 @@ export const AIAskScreen: React.FC<Props> = ({ navigation, route }) => {
       const response = await askQuestion(
         bookId,
         userMsg.content,
-        bookContextLabel,
+        title === "Open Bookstore"
+          ? "General Assistant"
+          : `Content from ${title}`,
         bookAnalysis
       );
-    const aiMsg: Message = {
-      id: (Date.now() + 1).toString(),
-      role: "assistant",
-      content: response,
-      createdAt: new Date(),
-      pending: true,
-    };
+      const aiMsg: Message = {
+        id: (Date.now() + 1).toString(),
+        role: "assistant",
+        content: response,
+        createdAt: new Date(),
+      };
       setMessages((prev) => [aiMsg, ...prev]);
       addAIChatMessage(userId, bookId, "assistant", response, {
         title,
         coverUrl: bookCoverUrl,
-      })
-        .then((id) => replaceMessageId(aiMsg.id, id))
-        .catch(() => undefined);
+      }).catch(() => undefined);
     } catch {
       const errorMsg: Message = {
         id: (Date.now() + 1).toString(),
         role: "assistant",
         content: t("aiAsk.error"),
         createdAt: new Date(),
-        pending: true,
       };
       setMessages((prev) => [errorMsg, ...prev]);
     }
@@ -687,34 +415,10 @@ export const AIAskScreen: React.FC<Props> = ({ navigation, route }) => {
               if (item.role === "date") {
                 return <DateIndicator date={item.date || ""} colors={colors} />;
               }
-              return (
-                <Pressable
-                  onPress={() => openMessageMenu(item)}
-                  onLongPress={() => openMessageMenu(item)}
-                  disabled={item.isSystem || item.pending}
-                  accessibilityRole="button"
-                  accessibilityLabel={t("aiAsk.messageMenuLabel")}
-                  accessibilityHint={t("aiAsk.messageMenuHint")}
-                >
-                  <ChatMessage message={item as any} colors={colors} />
-                </Pressable>
-              );
+              return <ChatMessage message={item as any} colors={colors} />;
             }}
           />
         </View>
-
-        {editingMessageId ? (
-          <View style={styles.editBanner}>
-            <Text style={styles.editText}>{t("aiAsk.messageEditing")}</Text>
-            <TouchableOpacity
-              onPress={cancelEditing}
-              accessibilityRole="button"
-              accessibilityLabel={t("aiAsk.menuCancel")}
-            >
-              <Text style={styles.editCancel}>{t("aiAsk.menuCancel")}</Text>
-            </TouchableOpacity>
-          </View>
-        ) : null}
 
         <ChatInputBar
           value={input}
@@ -722,35 +426,6 @@ export const AIAskScreen: React.FC<Props> = ({ navigation, route }) => {
           onSend={handleSend}
           placeholder={t("aiAsk.placeholder")}
           loading={loading}
-          colors={colors}
-        />
-
-        <ChatOptionsSheet
-          visible={menuVisible}
-          title={t("aiAsk.messageMenuTitle")}
-          subtitle={t("aiAsk.messageMenuSubtitle")}
-          actions={
-            activeMessage
-              ? [
-                  ...(activeMessage.role === "user"
-                    ? [
-                        {
-                          label: t("aiAsk.messageMenuEdit"),
-                          icon: "create-outline",
-                          onPress: () => startEditingMessage(activeMessage),
-                        },
-                      ]
-                    : []),
-                  {
-                    label: t("aiAsk.messageMenuDelete"),
-                    icon: "trash-outline",
-                    destructive: true,
-                    onPress: () => handleDeleteMessage(activeMessage),
-                  },
-                ]
-              : []
-          }
-          onClose={closeMessageMenu}
           colors={colors}
         />
       </KeyboardAvoidingView>
@@ -772,23 +447,5 @@ const createStyles = (colors: any) =>
     },
     messages: {
       padding: spacing.md,
-    },
-    editBanner: {
-      flexDirection: "row",
-      alignItems: "center",
-      justifyContent: "space-between",
-      paddingHorizontal: spacing.md,
-      paddingVertical: spacing.sm,
-      borderTopWidth: 1,
-      borderTopColor: colors.border,
-      backgroundColor: colors.surface,
-    },
-    editText: {
-      ...typography.bodySmall,
-      color: colors.textSecondary,
-    },
-    editCancel: {
-      ...typography.bodySmall,
-      color: colors.primary,
     },
   });

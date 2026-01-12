@@ -5,6 +5,7 @@ import {
   getDocs,
   addDoc,
   setDoc,
+  updateDoc,
   deleteDoc,
   orderBy,
   query,
@@ -233,6 +234,119 @@ export const addAIChatMessage = async (
   }
   await setDoc(doc(db, "aiChats", chatId), chatMeta, { merge: true });
   return docRef.id;
+};
+
+const getLatestMessageDoc = async (chatId: string) => {
+  const q = query(
+    collection(db, "aiChats", chatId, "messages"),
+    orderBy("createdAt", "desc"),
+    limit(1)
+  );
+  const snapshot = await getDocs(q);
+  return snapshot.docs[0] ?? null;
+};
+
+export const updateAIChatMessage = async (
+  userId: string,
+  bookId: string,
+  messageId: string,
+  content: string
+): Promise<void> => {
+  const chatId = getChatDocId(userId, bookId);
+  await updateDoc(doc(db, "aiChats", chatId, "messages", messageId), {
+    content,
+  });
+  const latest = await getLatestMessageDoc(chatId);
+  if (latest && latest.id === messageId) {
+    const data = latest.data() as DocumentData;
+    await setDoc(
+      doc(db, "aiChats", chatId),
+      {
+        lastMessage: data.content,
+        lastRole: data.role,
+        lastMessageAt: data.createdAt ?? new Date(),
+      },
+      { merge: true }
+    );
+  }
+};
+
+export const deleteAIChatMessage = async (
+  userId: string,
+  bookId: string,
+  messageId: string
+): Promise<void> => {
+  const chatId = getChatDocId(userId, bookId);
+  const chatRef = doc(db, "aiChats", chatId);
+  const messageRef = doc(db, "aiChats", chatId, "messages", messageId);
+  const messageSnap = await getDoc(messageRef);
+  if (!messageSnap.exists()) return;
+  await deleteDoc(messageRef);
+  const latest = await getLatestMessageDoc(chatId);
+  if (!latest) {
+    await setDoc(
+      chatRef,
+      {
+        messageCount: 0,
+        lastMessage: deleteField(),
+        lastRole: deleteField(),
+        lastMessageAt: deleteField(),
+      },
+      { merge: true }
+    );
+    return;
+  }
+  const data = latest.data() as DocumentData;
+  await setDoc(
+    chatRef,
+    {
+      messageCount: increment(-1),
+      lastMessage: data.content,
+      lastRole: data.role,
+      lastMessageAt: data.createdAt ?? new Date(),
+    },
+    { merge: true }
+  );
+};
+
+export const deleteAIChatMessages = async (
+  userId: string,
+  bookId: string,
+  messageIds: string[]
+): Promise<void> => {
+  if (messageIds.length === 0) return;
+  const chatId = getChatDocId(userId, bookId);
+  const chatRef = doc(db, "aiChats", chatId);
+  const batch = writeBatch(db);
+  messageIds.forEach((messageId) => {
+    batch.delete(doc(db, "aiChats", chatId, "messages", messageId));
+  });
+  await batch.commit();
+  const latest = await getLatestMessageDoc(chatId);
+  if (!latest) {
+    await setDoc(
+      chatRef,
+      {
+        messageCount: 0,
+        lastMessage: deleteField(),
+        lastRole: deleteField(),
+        lastMessageAt: deleteField(),
+      },
+      { merge: true }
+    );
+    return;
+  }
+  const data = latest.data() as DocumentData;
+  await setDoc(
+    chatRef,
+    {
+      messageCount: increment(-messageIds.length),
+      lastMessage: data.content,
+      lastRole: data.role,
+      lastMessageAt: data.createdAt ?? new Date(),
+    },
+    { merge: true }
+  );
 };
 
 const deleteChatMessages = async (chatId: string) => {
