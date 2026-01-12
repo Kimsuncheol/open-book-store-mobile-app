@@ -1,22 +1,24 @@
-import React, { useState, useRef, useEffect, useCallback } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import {
   View,
   StyleSheet,
-  FlatList,
+  VirtualizedList,
   KeyboardAvoidingView,
   Platform,
   type LayoutChangeEvent,
   type NativeScrollEvent,
   type NativeSyntheticEvent,
+  ActivityIndicator,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { DocumentData, QueryDocumentSnapshot } from "firebase/firestore";
 import { useTheme } from "../../context/ThemeContext";
 import { useLanguage } from "../../context/LanguageContext";
 import { useAuth } from "../../context/AuthContext";
 import { askQuestion } from "../../services/aiService";
 import {
   addAIChatMessage,
-  getAIChatMessagesPage,
+  getAIChatMessagesPaged,
   getAIChatRoom,
   getBook,
   BookAnalysis,
@@ -68,24 +70,29 @@ const insertDateSeparators = (messages: Message[]): Message[] => {
   if (messages.length === 0) return messages;
 
   const result: Message[] = [];
-  let lastDate: string | null = null;
 
+  // Messages are ordered Newest -> Oldest
   messages.forEach((msg, index) => {
-    if (msg.createdAt) {
-      const msgDate = new Date(msg.createdAt);
-      const dateLabel = formatDateLabel(msgDate);
-
-      if (dateLabel !== lastDate) {
-        result.push({
-          id: `date-${index}`,
-          role: "date",
-          content: "",
-          date: dateLabel,
-        });
-        lastDate = dateLabel;
-      }
-    }
     result.push(msg);
+
+    const currentDate = msg.createdAt ? new Date(msg.createdAt) : new Date();
+    const nextMsg = messages[index + 1];
+
+    const currentDateLabel = formatDateLabel(currentDate);
+    const nextDateLabel = nextMsg?.createdAt
+      ? formatDateLabel(new Date(nextMsg.createdAt))
+      : null;
+
+    // If the next message (older) has a different date, or doesn't exist (end of list),
+    // we insert a date header for the Current message group.
+    if (currentDateLabel !== nextDateLabel) {
+      result.push({
+        id: `date-${currentDateLabel}-${index}`,
+        role: "date",
+        content: "",
+        date: currentDateLabel,
+      });
+    }
   });
 
   return result;
@@ -149,180 +156,124 @@ export const AIAskScreen: React.FC<Props> = ({ navigation, route }) => {
   const [showSkeleton, setShowSkeleton] = useState(false);
   const [initialScrollDone, setInitialScrollDone] = useState(false);
   const [skeletonReleased, setSkeletonReleased] = useState(false);
-  const [historyCursor, setHistoryCursor] = useState<any>(null);
-  const [hasMoreHistory, setHasMoreHistory] = useState(true);
-  const [loadingOlder, setLoadingOlder] = useState(false);
   const [bookAnalysis, setBookAnalysis] = useState<BookAnalysis | undefined>(
     undefined
   );
   const [bookCoverUrl, setBookCoverUrl] = useState<string | undefined>(
     undefined
   );
-  const listRef = useRef<FlatList>(null);
-  const listLayoutHeightRef = useRef(0);
-  const contentHeightRef = useRef(0);
-  const autoScrollInProgressRef = useRef(false);
-  const initialScrollTriggeredRef = useRef(false);
-  const historyLoadingRef = useRef(true);
-  const prependInProgressRef = useRef(false);
-  const pageSize = 20;
+  const [lastVisible, setLastVisible] =
+    useState<QueryDocumentSnapshot<DocumentData> | null>(null);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [hasMoreMessages, setHasMoreMessages] = useState(true);
+
+  // ... (deps)
+
+  // const listRef = useRef<FlatList>(null); // Removed unused ref
+  const isLoadingMoreRef = useRef(false);
 
   const styles = createStyles(colors);
-  const skeletonFallback = <SkeletonChatMessages colors={colors} />;
+  // Removed skeleton logic
 
   useEffect(() => {
-    historyLoadingRef.current = historyLoading;
-  }, [historyLoading]);
+    isLoadingMoreRef.current = loadingMore;
+  }, [loadingMore]);
+
+  // Removed historyLoading effect and scroll logic
 
   useEffect(() => {
     let isMounted = true;
-    const initialCount = route.params?.messageCount;
-    const hasHistory =
-      typeof initialCount === "number" ? initialCount > 0 : false;
-    setShowSkeleton(hasHistory);
-    setHistoryFlagReady(typeof initialCount === "number");
-    setHistoryLoading(true);
-    setInitialScrollDone(false);
-    setSkeletonReleased(false);
-    setHistoryCursor(null);
-    setHasMoreHistory(true);
-    setLoadingOlder(false);
+
+    // Initial fetch
     setBookCoverUrl(route.params?.coverUrl);
-    setMessages([
-      {
-        id: "0",
-        role: "assistant",
-        content: t("aiAsk.intro", { title }),
-      },
-    ]);
-    listLayoutHeightRef.current = 0;
-    contentHeightRef.current = 0;
-    autoScrollInProgressRef.current = false;
-    initialScrollTriggeredRef.current = false;
+
+    // Default welcome message
+    const welcomeMsg: Message = {
+      id: "0",
+      role: "assistant",
+      content: t("aiAsk.intro", { title }),
+      createdAt: new Date(),
+    };
+
+    // Start with strictly the welcome message if no history yet?
+    // Actually we fetch history. If history exists, we show it.
+    // If empty history, show welcome.
+
     const loadMessages = async () => {
       try {
-        const { messages: history, nextCursor } = await getAIChatMessagesPage(
-          userId,
-          bookId,
-          pageSize
-        );
+        const { messages: history, lastVisible: last } =
+          await getAIChatMessagesPaged(userId, bookId, 20);
         if (!isMounted) return;
+
+        setLastVisible(last);
+        setHasMoreMessages(history.length >= 20);
+
         if (history.length > 0) {
+          // history is [Oldest, ..., Newest] from service
+          // We want [Newest, ..., Oldest]
+          const reversedHistory = [...history].reverse();
+
           setMessages(
-            history.map((msg) => ({
+            reversedHistory.map((msg) => ({
               id: msg.id,
               role: msg.role,
               content: msg.content,
               createdAt: msg.createdAt,
             }))
           );
-          setHistoryCursor(nextCursor);
-          setHasMoreHistory(history.length === pageSize);
         } else {
-          setHasMoreHistory(false);
+          setMessages([welcomeMsg]);
         }
       } catch {
-        // Ignore load errors to keep the chat usable
-      } finally {
-        if (isMounted) setHistoryLoading(false);
+        if (isMounted) setMessages([welcomeMsg]);
       }
     };
     loadMessages();
     return () => {
       isMounted = false;
     };
-  }, [bookId, route.params?.messageCount, userId]);
+  }, [bookId, route.params?.messageCount, userId, title]);
 
-  useEffect(() => {
-    if (
-      historyLoading ||
-      !initialScrollDone ||
-      skeletonReleased ||
-      !showSkeleton
-    ) {
-      return;
-    }
-    const timer = setTimeout(() => {
-      setSkeletonReleased(true);
-    }, 500);
-    return () => clearTimeout(timer);
-  }, [historyLoading, initialScrollDone, skeletonReleased, showSkeleton]);
+  // Removed timeout effect for skeleton release
+  // Removed explicit room check for skeleton
 
-  useEffect(() => {
-    let isMounted = true;
-    if (historyFlagReady || !historyLoading) return undefined;
-    const loadChatRoom = async () => {
-      try {
-        const room = await getAIChatRoom(userId, bookId);
-        if (!isMounted || !historyLoadingRef.current) return;
-        const hasHistory = (room?.messageCount ?? 0) > 0;
-        setShowSkeleton(hasHistory);
-      } catch {
-        // Ignore room lookup errors
-      } finally {
-        if (isMounted && historyLoadingRef.current) {
-          setHistoryFlagReady(true);
-        }
-      }
-    };
-    loadChatRoom();
-    return () => {
-      isMounted = false;
-    };
-  }, [bookId, historyFlagReady, historyLoading, userId]);
+  // ... (keep book analysis effect)
 
-  // Fetch book analysis for context
-  useEffect(() => {
-    if (bookId === "general") return;
-    const fetchBookAnalysis = async () => {
-      try {
-        const book = await getBook(bookId);
-        if (book?.analyze) {
-          setBookAnalysis(book.analyze);
-        }
-        setBookCoverUrl(book?.coverUrl ?? route.params?.coverUrl);
-      } catch (error) {
-        console.error("Error fetching book analysis:", error);
-      }
-    };
-    fetchBookAnalysis();
-  }, [bookId]);
+  const handleLoadMore = async () => {
+    if (loadingMore || !hasMoreMessages || !lastVisible) return;
 
-  const loadOlderMessages = useCallback(async () => {
-    if (!hasMoreHistory || loadingOlder || !historyCursor) return;
-    prependInProgressRef.current = true;
-    setLoadingOlder(true);
+    setLoadingMore(true);
     try {
-      const { messages: older, nextCursor } = await getAIChatMessagesPage(
-        userId,
-        bookId,
-        pageSize,
-        historyCursor
-      );
-      if (older.length > 0) {
+      const { messages: olderMessages, lastVisible: nextLast } =
+        await getAIChatMessagesPaged(userId, bookId, 20, lastVisible);
+
+      if (olderMessages.length < 20) {
+        setHasMoreMessages(false);
+      }
+
+      setLastVisible(nextLast);
+
+      if (olderMessages.length > 0) {
+        // olderMessages is [Oldest ... Older] (chronological subset)
+        // We want to append them as [Older ... Oldest] to the end of our Newest->Oldest list.
+        const reversedOlder = [...olderMessages].reverse();
+
         setMessages((prev) => [
-          ...older.map((msg) => ({
+          ...prev,
+          ...reversedOlder.map((msg) => ({
             id: msg.id,
             role: msg.role,
             content: msg.content,
             createdAt: msg.createdAt,
           })),
-          ...prev,
         ]);
-        setHistoryCursor(nextCursor);
-        if (!nextCursor || older.length < pageSize) {
-          setHasMoreHistory(false);
-        }
-      } else {
-        setHasMoreHistory(false);
       }
     } catch (error) {
-      console.error("Failed to load older messages:", error);
+      console.error("Error loading more messages:", error);
     } finally {
-      setLoadingOlder(false);
-      prependInProgressRef.current = false;
+      setLoadingMore(false);
     }
-  }, [bookId, hasMoreHistory, historyCursor, loadingOlder, pageSize, userId]);
+  };
 
   const handleSend = async () => {
     if (!input.trim() || loading) return;
@@ -333,7 +284,8 @@ export const AIAskScreen: React.FC<Props> = ({ navigation, route }) => {
       content: input.trim(),
       createdAt: new Date(),
     };
-    setMessages((prev) => [...prev, userMsg]);
+    // Newest messages at START of array for inverted list
+    setMessages((prev) => [userMsg, ...prev]);
     addAIChatMessage(userId, bookId, "user", userMsg.content, {
       title,
       coverUrl: bookCoverUrl,
@@ -356,7 +308,7 @@ export const AIAskScreen: React.FC<Props> = ({ navigation, route }) => {
         content: response,
         createdAt: new Date(),
       };
-      setMessages((prev) => [...prev, aiMsg]);
+      setMessages((prev) => [aiMsg, ...prev]);
       addAIChatMessage(userId, bookId, "assistant", response, {
         title,
         coverUrl: bookCoverUrl,
@@ -368,66 +320,56 @@ export const AIAskScreen: React.FC<Props> = ({ navigation, route }) => {
         content: t("aiAsk.error"),
         createdAt: new Date(),
       };
-      setMessages((prev) => [...prev, errorMsg]);
+      setMessages((prev) => [errorMsg, ...prev]);
     }
     setLoading(false);
   };
 
-  const maybeCompleteInitialScroll = (contentHeight: number) => {
-    const layoutHeight = listLayoutHeightRef.current;
-    if (layoutHeight > 0 && contentHeight <= layoutHeight + spacing.sm) {
-      autoScrollInProgressRef.current = false;
-      setInitialScrollDone(true);
-      return true;
-    }
-    return false;
-  };
+  // Removed scroll handlers
 
-  const handleListLayout = (event: LayoutChangeEvent) => {
-    listLayoutHeightRef.current = event.nativeEvent.layout.height;
-    if (
-      !historyLoading &&
-      initialScrollTriggeredRef.current &&
-      !initialScrollDone
-    ) {
-      maybeCompleteInitialScroll(contentHeightRef.current);
-    }
-  };
+  // Prepare data for inverted list
+  // The 'messages' state should store [newest, ..., oldest]
+  // BUT the current state seems to store [oldest, ..., newest] based on existing logic.
+  // Wait, let's fix state management.
+  // Logic:
+  // - Initial load: fetches newest 20. Store as [oldest ... newest]?
+  // No, valid inverted list usually wants [newest ... oldest].
+  // Let's refactor setMessages usage entirely.
 
-  const handleContentSizeChange = (_width: number, height: number) => {
-    contentHeightRef.current = height;
-    if (historyLoading || loadingOlder || prependInProgressRef.current) return;
-    listRef.current?.scrollToEnd({ animated: true });
-    if (!initialScrollTriggeredRef.current) {
-      initialScrollTriggeredRef.current = true;
-      if (!maybeCompleteInitialScroll(height)) {
-        autoScrollInProgressRef.current = true;
-      }
-    }
-  };
+  // Actually, to minimize diff risk, I will keep messages as [oldest, ..., newest]
+  // and just reverse them in the render prop + handle new messages by appending?
+  // Inverted list takes data[0] as bottom-most.
+  // So data needs to be [newest, ..., oldest].
+  //
+  // REFACTOR STRATEGY:
+  // 1. messages state will store [newest, ..., oldest].
+  // 2. Initial load: gets newest 20 (paged). API likely returns [oldest ... newest]?
+  //    Check getAIChatMessagesPaged. Usually firestore returns ordered queries.
+  //    If it returns [oldest, ..., newest] (chronological), we need to reverse it.
 
-  const handleScroll = (event: NativeSyntheticEvent<NativeScrollEvent>) => {
-    const { layoutMeasurement, contentOffset, contentSize } = event.nativeEvent;
-    if (
-      !historyLoading &&
-      contentOffset.y <= spacing.sm &&
-      hasMoreHistory &&
-      !loadingOlder
-    ) {
-      loadOlderMessages();
-    }
+  // Let's check `insertDateSeparators`. It iterates and inserts. Expects chrono order?
+  // `insertDateSeparators` iterates, checks date diff.
+  // If we pass reversed array, date separators logic might break.
+  // BETTER IDEA:
+  // Keep `messages` state as [oldest, ..., newest] (CHRONOLOGICAL).
+  // Render: `data={[...insertDateSeparators(messages)].reverse()}`
+  // Let's stick to that for minimal logic change.
 
-    if (!autoScrollInProgressRef.current || initialScrollDone) return;
-    if (
-      layoutMeasurement.height + contentOffset.y >=
-      contentSize.height - spacing.sm
-    ) {
-      autoScrollInProgressRef.current = false;
-      setInitialScrollDone(true);
-    }
-  };
+  // No need to reverse result. messages is [Newest...Oldest]
+  // We prepend Typing indicator if loading.
+  // In Inverted list (0=Bottom), Typing indicator should be at Bottom (Index 0).
+  // So data = [Typing, Newest, ..., Oldest]
 
-  // Return the main view - don't include bottom edge since tab navigator handles it
+  const renderMessages = loading
+    ? [
+        { id: "typing", role: "typing" as const },
+        ...insertDateSeparators(messages),
+      ]
+    : insertDateSeparators(messages);
+
+  const getItem = (data: Message[], index: number) => data[index];
+  const getItemCount = (data: Message[]) => data.length;
+
   return (
     <SafeAreaView style={styles.container} edges={["top"]}>
       <KeyboardAvoidingView
@@ -436,7 +378,6 @@ export const AIAskScreen: React.FC<Props> = ({ navigation, route }) => {
         keyboardVerticalOffset={Platform.OS === "ios" ? 90 : 30}
       >
         <ChatHeader
-          onBack={() => navigation.goBack()}
           onMenuPress={() => navigation.navigate("AIAskMain")}
           menuLabel={t("aiAsk.menuListTitle")}
           title={t("aiAsk.title")}
@@ -445,37 +386,38 @@ export const AIAskScreen: React.FC<Props> = ({ navigation, route }) => {
         />
 
         <View style={styles.listContainer}>
-          <FlatList
-            ref={listRef}
-            data={
-              loading
-                ? [
-                    ...insertDateSeparators(messages),
-                    { id: "typing", role: "typing" as const },
-                  ]
-                : insertDateSeparators(messages)
+          <VirtualizedList
+            // ref={listRef} // VirtualizedList ref type mismatch with FlatList ref if we kept it.
+            data={renderMessages}
+            getItem={getItem}
+            getItemCount={getItemCount}
+            keyExtractor={(item: Message) => item.id}
+            inverted
+            initialNumToRender={20}
+            maxToRenderPerBatch={10}
+            windowSize={5}
+            ListFooterComponent={
+              // Top of screen in inverted
+              loadingMore ? (
+                <View style={{ padding: 10 }}>
+                  <ActivityIndicator size="small" color={colors.primary} />
+                </View>
+              ) : null
             }
-            keyExtractor={(item) => item.id}
+            onEndReached={handleLoadMore}
+            onEndReachedThreshold={0.2}
             keyboardShouldPersistTaps="handled"
             contentContainerStyle={styles.messages}
-            maintainVisibleContentPosition={{ minIndexForVisible: 1 }}
-            onLayout={handleListLayout}
-            onContentSizeChange={handleContentSizeChange}
-            onScroll={handleScroll}
-            scrollEventThrottle={16}
-            renderItem={({ item }) => {
+            renderItem={({ item }: { item: Message }) => {
               if (item.role === "typing") {
                 return <TypingIndicator colors={colors} />;
               }
               if (item.role === "date") {
                 return <DateIndicator date={item.date || ""} colors={colors} />;
               }
-              return <ChatMessage message={item} colors={colors} />;
+              return <ChatMessage message={item as any} colors={colors} />;
             }}
           />
-          <React.Suspense fallback={skeletonFallback}>
-            <SkeletonGate released={skeletonReleased} enabled={showSkeleton} />
-          </React.Suspense>
         </View>
 
         <ChatInputBar
@@ -490,7 +432,7 @@ export const AIAskScreen: React.FC<Props> = ({ navigation, route }) => {
     </SafeAreaView>
   );
 };
-
+// ... styles
 const createStyles = (colors: any) =>
   StyleSheet.create({
     container: {

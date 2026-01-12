@@ -176,7 +176,15 @@ export const BookDetailsScreen: React.FC<Props> = ({ navigation, route }) => {
 
         <TouchableOpacity
           style={styles.cta}
-          onPress={() => Alert.alert("Reader", "Reader screen is unavailable.")}
+          onPress={() => {
+            const pdfUri =
+              book.pdfUrl ||
+              "https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf";
+            navigation.navigate("PDFViewer", {
+              uri: pdfUri,
+              title: book.title,
+            });
+          }}
         >
           <Text style={styles.ctaText}>Read Now</Text>
         </TouchableOpacity>

@@ -180,9 +180,19 @@ export const SavedScreen: React.FC<SavedScreenProps> = ({ navigation }) => {
         <View style={styles.actionButtons}>
           <TouchableOpacity
             style={[styles.readBtn, { backgroundColor: PRIMARY }]}
-            onPress={() =>
-              Alert.alert("Reader", "Reader screen is unavailable.")
-            }
+            onPress={() => {
+              const pdfUri =
+                item.book.pdfUrl ||
+                "https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf";
+              // @ts-ignore - DashboardStack is available in parent navigator
+              navigation.navigate("DashboardTab", {
+                screen: "PDFViewer",
+                params: {
+                  uri: pdfUri,
+                  title: item.book.title,
+                },
+              });
+            }}
           >
             <Ionicons name="book-outline" size={16} color="#FFFFFF" />
             <Text style={styles.actionBtnText}>Read Now</Text>

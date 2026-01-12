@@ -9,13 +9,14 @@ import {
   orderBy,
   query,
   where,
-  startAfter,
-  limit,
   increment,
   writeBatch,
   deleteField,
   DocumentData,
   onSnapshot,
+  limit,
+  startAfter,
+  QueryDocumentSnapshot,
 } from "firebase/firestore";
 import { db } from "../config/firebase";
 
@@ -70,20 +71,32 @@ export const getAIChatMessages = async (
   });
 };
 
-export const getAIChatMessagesPage = async (
+export const getAIChatMessagesPaged = async (
   userId: string,
   bookId: string,
-  pageSize: number,
-  cursor?: any
-): Promise<{ messages: AIChatMessage[]; nextCursor: any | null }> => {
+  limitCount: number = 20,
+  startAfterDoc?: QueryDocumentSnapshot<DocumentData>
+): Promise<{
+  messages: AIChatMessage[];
+  lastVisible: QueryDocumentSnapshot<DocumentData> | null;
+}> => {
   const chatId = getChatDocId(userId, bookId);
-  const baseQuery = query(
+  let q = query(
     collection(db, "aiChats", chatId, "messages"),
     orderBy("createdAt", "desc"),
-    limit(pageSize)
+    limit(limitCount)
   );
-  const pageQuery = cursor ? query(baseQuery, startAfter(cursor)) : baseQuery;
-  const snapshot = await getDocs(pageQuery);
+
+  if (startAfterDoc) {
+    q = query(
+      collection(db, "aiChats", chatId, "messages"),
+      orderBy("createdAt", "desc"),
+      startAfter(startAfterDoc),
+      limit(limitCount)
+    );
+  }
+
+  const snapshot = await getDocs(q);
   const messages = snapshot.docs.map((docSnap) => {
     const data = docSnap.data() as DocumentData;
     return {
@@ -95,8 +108,13 @@ export const getAIChatMessagesPage = async (
       createdAt: asDate(data.createdAt) as Date,
     } as AIChatMessage;
   });
-  const nextCursor = snapshot.docs[snapshot.docs.length - 1] ?? null;
-  return { messages: messages.reverse(), nextCursor };
+
+  // Reverse to return in chronological order (oldest to newest) for UI
+  return {
+    messages: messages.reverse(),
+    lastVisible:
+      snapshot.docs.length > 0 ? snapshot.docs[snapshot.docs.length - 1] : null,
+  };
 };
 
 export const getAIChatRoom = async (

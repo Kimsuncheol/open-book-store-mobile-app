@@ -15,6 +15,7 @@ import { BookReviewsScreen } from "../screens/main/BookReviewsScreen";
 import { PollsScreen } from "../screens/main/PollsScreen";
 import { TrendingScreen } from "../screens/main/TrendingScreen";
 import { UploadScreen } from "../screens/main/UploadScreen";
+import PDFViewerScreen from "../screens/reader/PDFViewerScreen";
 
 const DashboardStack = createNativeStackNavigator<DashboardStackParamList>();
 
@@ -79,6 +80,11 @@ export function DashboardStackNavigator() {
         name="Upload"
         component={UploadScreen}
         options={{ title: t("navigation.upload"), headerShown: false }}
+      />
+      <DashboardStack.Screen
+        name="PDFViewer"
+        component={PDFViewerScreen}
+        options={{ title: "PDF Viewer" }}
       />
     </DashboardStack.Navigator>
   );

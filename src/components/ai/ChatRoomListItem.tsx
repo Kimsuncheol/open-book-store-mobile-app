@@ -35,7 +35,7 @@ export const ChatRoomListItem: React.FC<ChatRoomListItemProps> = ({
   const title = room.title || "Open Bookstore";
 
   const handleSwipeOpen = (direction: "left" | "right") => {
-    if (direction !== "right") return;
+    if (direction !== "left") return;
     swipeRef.current?.close();
     onSwipeDelete();
   };
@@ -72,6 +72,12 @@ export const ChatRoomListItem: React.FC<ChatRoomListItemProps> = ({
       </View>
     );
   };
+  const renderLeftActions = () => (
+    <View style={styles.deleteAction}>
+      <Ionicons name="trash-outline" size={18} color={colors.textLight} />
+      <Text style={styles.deleteText}>{deleteLabel}</Text>
+    </View>
+  );
 
   return (
     <Swipeable
@@ -82,6 +88,8 @@ export const ChatRoomListItem: React.FC<ChatRoomListItemProps> = ({
       friction={2}
       overshootFriction={8}
       rightThreshold={40}
+      renderLeftActions={renderLeftActions}
+      overshootLeft={false}
     >
       <TouchableOpacity
         style={styles.item}

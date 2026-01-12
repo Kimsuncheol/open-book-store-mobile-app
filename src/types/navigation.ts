@@ -28,6 +28,7 @@ export type DashboardStackParamList = {
   Polls: undefined;
   Trending: undefined;
   Upload: undefined;
+  PDFViewer: { uri: string; title?: string };
 };
 
 // Downloads Stack - screens accessible from Downloads tab
